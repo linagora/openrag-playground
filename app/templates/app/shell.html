@@ -1171,14 +1171,20 @@ function selectPartition(wrapper) {
     updateUploadBtn();
 }
 
+function collapseAllExpandables() {
+    document.querySelectorAll('.partition-files, .partition-access, .file-chunks').forEach(function(el) {
+        el.style.display = 'none';
+    });
+    document.querySelectorAll('.file-item.open').forEach(function(el) {
+        el.classList.remove('open');
+    });
+}
+
 function togglePartitionFiles(wrapper, partition) {
     var filesDiv = wrapper.querySelector('.partition-files');
     if (!filesDiv) return;
     var isOpen = filesDiv.style.display !== 'none';
-    // Close all other expanded partitions
-    document.querySelectorAll('.partition-files').forEach(function(el) {
-        el.style.display = 'none';
-    });
+    collapseAllExpandables();
     if (isOpen) {
         return;
     } else {
@@ -1225,9 +1231,11 @@ function toggleFileChunks(header, partition, fileId) {
     var fileItem = header.closest('.file-item');
     var chunksDiv = fileItem.querySelector('.file-chunks');
     var isOpen = chunksDiv.style.display !== 'none';
+    var parentFiles = fileItem.closest('.partition-files');
+    collapseAllExpandables();
+    if (parentFiles) parentFiles.style.display = 'block';
     if (isOpen) {
-        chunksDiv.style.display = 'none';
-        fileItem.classList.remove('open');
+        return;
     } else {
         chunksDiv.style.display = 'block';
         fileItem.classList.add('open');
@@ -1249,8 +1257,9 @@ function togglePartitionAccess(btn, partition) {
     var accessDiv = wrapper.querySelector('.partition-access');
     if (!accessDiv) return;
     var isOpen = accessDiv.style.display !== 'none';
+    collapseAllExpandables();
     if (isOpen) {
-        accessDiv.style.display = 'none';
+        return;
     } else {
         accessDiv.style.display = 'block';
         if (!accessDiv.dataset.loaded) {

@@ -837,6 +837,24 @@ RCS Nanterre — SIREN 431 473 669<br>
         "en": "chunks",
         "fr": "fragments",
     },
+
+    # Roles
+    "role.none": {
+        "en": "No access",
+        "fr": "Aucun accès",
+    },
+    "role.viewer": {
+        "en": "Viewer",
+        "fr": "Lecteur",
+    },
+    "role.editor": {
+        "en": "Editor",
+        "fr": "Éditeur",
+    },
+    "role.owner": {
+        "en": "Owner",
+        "fr": "Propriétaire",
+    },
 }
 
 

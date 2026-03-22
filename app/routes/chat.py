@@ -103,8 +103,8 @@ def partitions():
 
 def _role_badge(is_admin):
     if is_admin:
-        return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px" style="font-size:9px;font-weight:600;background:rgba(199,31,69,0.15);color:var(--accent);">admin</span>'
-    return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px" style="font-size:9px;font-weight:600;background:rgba(34,211,164,0.15);color:var(--success);">user</span>'
+        return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px" style="font-size:10px;font-weight:600;background:rgba(199,31,69,0.15);color:var(--accent);">admin</span>'
+    return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px" style="font-size:10px;font-weight:600;background:rgba(34,211,164,0.15);color:var(--success);">user</span>'
 
 
 def _check_role(api_url, token):
@@ -189,16 +189,16 @@ def partition_stats():
         file_count = f_files.result()
         chunk_count = f_chunks.result()
     if file_count == 0 and chunk_count == 0:
-        return '<span id="partition-stats" class="text-[10px]" style="color:var(--text-subtle);">—</span>'
+        return '<span id="partition-stats" class="text-[11px]" style="color:var(--text-subtle);">—</span>'
     parts = []
     if file_count:
         label = t("stats.files") if file_count != 1 else t("stats.file")
-        parts.append(f'<i data-lucide="file" style="width:11px;height:11px;display:inline;vertical-align:-1px;"></i> {file_count} {label}')
+        parts.append(f'<i data-lucide="file" class="w-2.5 h-2.5 inline" style="vertical-align:-1px;"></i> {file_count} {label}')
     if chunk_count:
         label = t("stats.chunks") if chunk_count != 1 else t("stats.chunk")
-        parts.append(f'<i data-lucide="puzzle" style="width:11px;height:11px;display:inline;vertical-align:-1px;"></i> {chunk_count} {label}')
-    text = ' <span style="opacity:0.4;">·</span> '.join(parts)
-    return f'<span id="partition-stats" class="text-[10px]" style="color:var(--text-muted);">{text}</span>'
+        parts.append(f'<i data-lucide="puzzle" class="w-2.5 h-2.5 inline" style="vertical-align:-1px;"></i> {chunk_count} {label}')
+    text = ' <span class="opacity-40">·</span> '.join(parts)
+    return f'<span id="partition-stats" class="text-[11px]" style="color:var(--text-muted);">{text}</span>'
 
 
 @chat_bp.route("/partition-files/<partition>")
@@ -321,91 +321,96 @@ def file_proxy(partition, file_id):
     return "", 404
 
 
-@chat_bp.route("/partition-access/<partition>")
-def partition_access(partition):
-    """Get current access list for a partition."""
-    token, api_url = _get_credentials()
-    if not token:
-        return "", 401
+def _resolve_openrag_uid(user_cfg, password):
+    """Decrypt a demo user's token and call /users/info to get their OpenRAG user_id."""
+    from app.crypto import decrypt_token as do_decrypt
     try:
-        resp = httpx.get(
-            f"{api_url}/partition/{partition}/access",
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=10.0,
-        )
+        tok = do_decrypt(user_cfg["token"], password, user_cfg["id"])
+        api = user_cfg.get("api_url", "").rstrip("/")
+        resp = httpx.get(f"{api}/users/info",
+                         headers={"Authorization": f"Bearer {tok}"}, timeout=5.0)
         if resp.status_code == 200:
             data = resp.json()
-            users = data if isinstance(data, list) else data.get("users", data.get("access", []))
-            return render_template("app/access.html", users=users, partition=partition)
+            return data.get("user_id", data.get("id", ""))
     except Exception:
         pass
-    return '<div class="text-xs px-2 py-1" style="color:var(--text-subtle);">—</div>'
+    return ""
 
 
-@chat_bp.route("/partition-access/<partition>/grant", methods=["POST"])
-def grant_access(partition):
-    """Grant access to a user on a partition."""
+@chat_bp.route("/partition-access/<partition>")
+def partition_access(partition):
+    """Get all group members with their access level for this partition."""
     token, api_url = _get_credentials()
     if not token:
         return "", 401
-    email = request.form.get("email", "").strip()
-    role = request.form.get("role", "viewer")
-    if not email:
-        return "", 400
+    password = current_app.config.get("ADMIN_PASSWORD")
+    # Fetch current partition users
+    role_map = {}
     try:
-        resp = httpx.post(
-            f"{api_url}/partition/{partition}/access",
+        resp = httpx.get(
+            f"{api_url}/partition/{partition}/users",
             headers={"Authorization": f"Bearer {token}"},
-            json={"external_user_id": email, "role": role},
             timeout=10.0,
         )
-        # Refresh the access list
-        return partition_access(partition)
-    except Exception:
-        pass
-    return partition_access(partition)
+        current_app.logger.info("GET /partition/%s/users → %s %s", partition, resp.status_code, resp.text[:500])
+        if resp.status_code == 200:
+            data = resp.json()
+            items = data if isinstance(data, list) else data.get("members", data.get("users", []))
+            for u in items:
+                uid = u.get("user_id", u.get("id", ""))
+                if uid:
+                    role_map[uid] = u.get("role", "viewer")
+    except Exception as e:
+        current_app.logger.info("GET /partition/%s/users FAILED: %s", partition, e)
+    # Build unified list from same-group demo users, resolving their OpenRAG user_id
+    config = load_yaml_config()
+    demo_user = session.get("demo_user", {})
+    group = demo_user.get("group", "")
+    current_id = demo_user.get("id", "")
+    members = []
+    if config and password:
+        for u in config.get("demo_users", []):
+            if u.get("group") == group and u.get("id") != current_id:
+                openrag_uid = _resolve_openrag_uid(u, password)
+                if openrag_uid:
+                    members.append({
+                        "user_id": openrag_uid,
+                        "name": u.get("name", openrag_uid),
+                        "role": role_map.get(openrag_uid, "none"),
+                    })
+    current_app.logger.info("PARTITION_ACCESS %s role_map=%s members=%s", partition, role_map, members)
+    return render_template("app/access.html", members=members, partition=partition)
 
 
-@chat_bp.route("/partition-access/<partition>/update", methods=["POST"])
-def update_access(partition):
-    """Update a user's role on a partition."""
+@chat_bp.route("/partition-access/<partition>/set", methods=["POST"])
+def set_access(partition):
+    """Set a user's role: none → revoke, new role on no-access → grant, else → update."""
     token, api_url = _get_credentials()
     if not token:
         return "", 401
-    email = request.form.get("email", "").strip()
-    role = request.form.get("role", "viewer")
-    if not email:
+    user_id = request.form.get("user_id", "").strip()
+    new_role = request.form.get("role", "none")
+    old_role = request.form.get("old_role", "none")
+    if not user_id:
         return "", 400
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = None
     try:
-        httpx.put(
-            f"{api_url}/partition/{partition}/access",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"external_user_id": email, "role": role},
-            timeout=10.0,
-        )
+        if new_role == "none" and old_role != "none":
+            resp = httpx.delete(f"{api_url}/partition/{partition}/users/{user_id}",
+                                headers=headers, timeout=10.0)
+        elif new_role != "none" and old_role == "none":
+            resp = httpx.post(f"{api_url}/partition/{partition}/users",
+                              headers=headers, data={"user_id": user_id, "role": new_role},
+                              timeout=10.0)
+        elif new_role != "none" and new_role != old_role:
+            resp = httpx.patch(f"{api_url}/partition/{partition}/users/{user_id}",
+                               headers=headers, data={"role": new_role}, timeout=10.0)
     except Exception:
         pass
-    return partition_access(partition)
-
-
-@chat_bp.route("/partition-access/<partition>/revoke", methods=["POST"])
-def revoke_access(partition):
-    """Revoke a user's access to a partition."""
-    token, api_url = _get_credentials()
-    if not token:
-        return "", 401
-    email = request.form.get("email", "").strip()
-    if not email:
-        return "", 400
-    try:
-        httpx.delete(
-            f"{api_url}/partition/{partition}/access",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"external_user_id": email},
-            timeout=10.0,
-        )
-    except Exception:
-        pass
+    if resp is not None:
+        current_app.logger.info("SET_ACCESS %s %s → %s: HTTP %s %s",
+                                partition, user_id, new_role, resp.status_code, resp.text[:200])
     return partition_access(partition)
 
 

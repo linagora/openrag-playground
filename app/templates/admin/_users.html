@@ -1,0 +1,195 @@
+{% if error %}
+<div class="mb-4 px-4 py-3 rounded-lg text-sm"
+     style="background: rgba(244,63,94,0.08); color: var(--danger);">
+    {{ error }}
+</div>
+{% endif %}
+
+<!-- Add user form -->
+<form hx-post="{{ url_for('admin.add_user') }}"
+      hx-target="#tab-content" hx-swap="innerHTML"
+      id="user-form"
+      class="rounded-lg p-4 mb-6"
+      style="background: var(--bg-elevated);">
+
+    <!-- Row 1: API URL + Token (primary inputs) -->
+    <div class="grid grid-cols-2 gap-3 mb-3">
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.api_url') }}</label>
+            <input type="url" name="api_url" id="user-api-url" placeholder="https://demo.open-rag.ai/"
+                   value="{{ form.api_url if form else 'https://demo.open-rag.ai/' }}"
+                   class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                   style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+        </div>
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.token') }} *</label>
+            <div class="flex gap-2">
+                <input type="text" name="token" required placeholder="sk-..." id="user-token"
+                       value="{{ form.token if form else '' }}"
+                       class="w-full px-3 py-2 rounded-lg text-sm outline-none font-mono"
+                       style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+                <button type="button" id="lookup-btn" onclick="lookupUser()"
+                        class="px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-opacity hover:opacity-90 shrink-0"
+                        style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted);"
+                        title="{{ t('admin.user.lookup') }}">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 2: Name + Email (fetched from API, grayed until lookup) -->
+    <div class="grid grid-cols-3 gap-3 mb-3">
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.name') }}</label>
+            <input type="text" name="name" placeholder="{{ t('admin.user.fetched_from_api') }}" data-field="user-name"
+                   value="{{ form.name if form else '' }}"
+                   {{ '' if form else 'readonly' }}
+                   class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                   style="background: var(--bg-surface); border: 1px solid var(--border); color: {{ 'var(--text-primary)' if form else 'var(--text-subtle)' }};">
+        </div>
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.email') }}</label>
+            <input type="email" name="email" placeholder="{{ t('admin.user.fetched_from_api') }}" data-field="user-email"
+                   value="{{ form.email if form else '' }}"
+                   {{ '' if form else 'readonly' }}
+                   class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                   style="background: var(--bg-surface); border: 1px solid var(--border); color: {{ 'var(--text-primary)' if form else 'var(--text-subtle)' }};">
+        </div>
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.title') }}</label>
+            <input type="text" name="title" placeholder="Legal Counsel" data-field="user-title"
+                   value="{{ form.title if form else '' }}"
+                   class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                   style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+        </div>
+    </div>
+
+    <!-- Row 3: Group + Genre + Color -->
+    <div class="grid grid-cols-3 gap-3 mb-3">
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.group') }} *</label>
+            <select name="group" required class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+                <option value="">—</option>
+                {% for g in groups %}
+                <option value="{{ g.id }}" {{ 'selected' if form and form.group == g.id }}>{{ g.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.genre') }}</label>
+            <select name="genre" data-field="user-genre" class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+                <option value="female" {{ 'selected' if form and form.genre == 'female' }}>Female</option>
+                <option value="male" {{ 'selected' if form and form.genre == 'male' }}>Male</option>
+                <option value="neutral" {{ 'selected' if form and form.genre == 'neutral' }}>Neutral</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.color') }}</label>
+            <input type="color" name="avatar_color" data-field="user-color"
+                   value="{{ form.avatar_color if form else '#4F6EF7' }}"
+                   class="w-full h-[34px] rounded-lg cursor-pointer border-0"
+                   style="background: var(--bg-surface);">
+        </div>
+    </div>
+
+    <!-- Status message -->
+    <div id="lookup-status" class="mb-3 text-xs" style="display:none;"></div>
+
+    <button type="submit"
+            class="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer transition-opacity duration-150 hover:opacity-90"
+            style="background: var(--accent); color: white;">
+        {{ t('admin.user.add') }}
+    </button>
+</form>
+
+<!-- Lookup JS -->
+<script>
+function lookupUser() {
+    var apiUrl = document.getElementById('user-api-url').value.trim().replace(/\/+$/, '');
+    var token = document.getElementById('user-token').value.trim();
+    var status = document.getElementById('lookup-status');
+    var nameField = document.querySelector('[data-field="user-name"]');
+    var emailField = document.querySelector('[data-field="user-email"]');
+
+    if (!token) return;
+
+    status.style.display = 'block';
+    status.style.color = 'var(--text-muted)';
+    status.textContent = '{{ t("admin.user.looking_up") }}';
+
+    var form = new FormData();
+    form.append('api_url', apiUrl);
+    form.append('token', token);
+
+    fetch('{{ url_for("admin.lookup_user") }}', { method: 'POST', body: form })
+        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+        .then(function(result) {
+            if (result.ok) {
+                nameField.value = result.data.name || '';
+                emailField.value = result.data.email || '';
+                nameField.readOnly = false;
+                emailField.readOnly = false;
+                nameField.style.color = 'var(--text-primary)';
+                emailField.style.color = 'var(--text-primary)';
+                status.style.color = 'var(--success)';
+                status.textContent = '{{ t("admin.user.lookup_ok") }}';
+            } else {
+                status.style.color = 'var(--danger)';
+                status.textContent = result.data.error || '{{ t("admin.user.lookup_fail") }}';
+            }
+            setTimeout(function() { status.style.display = 'none'; }, 3000);
+        })
+        .catch(function() {
+            status.style.color = 'var(--danger)';
+            status.textContent = '{{ t("admin.user.lookup_fail") }}';
+            setTimeout(function() { status.style.display = 'none'; }, 3000);
+        });
+}
+
+// Auto-lookup when token field loses focus
+document.getElementById('user-token').addEventListener('blur', function() {
+    if (this.value.trim()) lookupUser();
+});
+</script>
+
+<!-- Existing users -->
+{% if users %}
+<div class="space-y-2">
+    {% for u in users %}
+    <div class="flex items-center gap-3 px-4 py-3 rounded-lg"
+         style="background: var(--bg-elevated); border: 1px solid var(--border);">
+        <span class="w-8 h-8 rounded-full inline-flex items-center justify-center text-xs font-bold text-white shrink-0"
+              style="background: {{ u.avatar_color }};">
+            {{ u.name.split()[0][0] }}{{ u.name.split()[-1][0] if u.name.split()|length > 1 }}
+        </span>
+        <div class="flex-1 min-w-0">
+            <div class="text-sm font-medium truncate">{{ u.name }}</div>
+            <div class="text-xs truncate" style="color: var(--text-muted);">
+                {{ u.title }}{% if u.get('email') %} · {{ u.email }}{% endif %}{% if u.group %} · {{ u.group }}{% endif %}
+            </div>
+        </div>
+        <span class="text-xs truncate max-w-[140px]" style="color: var(--text-subtle);">{{ u.api_url }}</span>
+        <button hx-get="{{ url_for('admin.edit_user', idx=loop.index0) }}"
+                hx-target="closest div.flex" hx-swap="outerHTML"
+                class="cursor-pointer transition-opacity hover:opacity-70 shrink-0"
+                style="color: var(--text-muted);">
+            <i data-lucide="pencil" class="w-4 h-4"></i>
+        </button>
+        <button hx-delete="{{ url_for('admin.remove_user', idx=loop.index0) }}"
+                hx-target="#tab-content" hx-swap="innerHTML"
+                hx-confirm="{{ t('admin.confirm_delete') }}"
+                class="cursor-pointer transition-opacity hover:opacity-70 shrink-0"
+                style="color: var(--danger);">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm py-8 text-center rounded-lg" style="color: var(--text-subtle); background: var(--bg-elevated);">
+    {{ t('admin.user.empty') }}
+</p>
+{% endif %}

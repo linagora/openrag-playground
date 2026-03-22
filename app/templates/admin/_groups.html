@@ -1,0 +1,63 @@
+<!-- Add group form -->
+<form hx-post="{{ url_for('admin.add_group') }}"
+      hx-target="#tab-content" hx-swap="innerHTML"
+      class="flex flex-wrap gap-2 mb-6 items-end">
+    <div class="flex-1 min-w-[160px]">
+        <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.group.label') }}</label>
+        <input type="text" name="label" required placeholder="Legal Department"
+               class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+               style="background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary);">
+    </div>
+    <div class="w-16">
+        <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.group.color') }}</label>
+        <input type="color" name="color" value="#4F6EF7"
+               class="w-full h-[34px] rounded-lg cursor-pointer border-0"
+               style="background: var(--bg-elevated);">
+    </div>
+    <div class="w-36">
+        <label class="block text-xs mb-1" style="color: var(--text-subtle);">
+            {{ t('admin.group.icon') }}
+            <a href="https://lucide.dev/icons" target="_blank" rel="noopener" class="ml-1" style="color: var(--accent);">?</a>
+        </label>
+        <input type="text" name="icon" placeholder="scale" value="folder"
+               class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+               style="background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary);">
+    </div>
+    <button type="submit"
+            class="px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-opacity duration-150 hover:opacity-90"
+            style="background: var(--accent); color: white;">
+        <i data-lucide="plus" class="w-4 h-4 inline-block"></i>
+    </button>
+</form>
+
+<!-- Existing groups -->
+{% if groups %}
+<div class="space-y-2">
+    {% for g in groups %}
+    <div class="flex items-center gap-3 px-4 py-3 rounded-lg"
+         style="background: var(--bg-elevated); border: 1px solid var(--border);">
+        <span class="w-3 h-3 rounded-full shrink-0" style="background: {{ g.color }};"></span>
+        <i data-lucide="{{ g.icon }}" class="w-4 h-4 shrink-0" style="color: {{ g.color }};"></i>
+        <span class="text-sm font-medium flex-1">{{ g.label }}</span>
+        <span class="text-xs" style="color: var(--text-subtle);">{{ g.id }}</span>
+        <button hx-get="{{ url_for('admin.edit_group', idx=loop.index0) }}"
+                hx-target="closest div" hx-swap="outerHTML"
+                class="cursor-pointer transition-opacity hover:opacity-70"
+                style="color: var(--text-muted);">
+            <i data-lucide="pencil" class="w-4 h-4"></i>
+        </button>
+        <button hx-delete="{{ url_for('admin.remove_group', idx=loop.index0) }}"
+                hx-target="#tab-content" hx-swap="innerHTML"
+                hx-confirm="{{ t('admin.confirm_delete') }}"
+                class="cursor-pointer transition-opacity hover:opacity-70"
+                style="color: var(--danger);">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </button>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm py-8 text-center rounded-lg" style="color: var(--text-subtle); background: var(--bg-elevated);">
+    {{ t('admin.group.empty') }}
+</p>
+{% endif %}

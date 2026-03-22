@@ -1,0 +1,44 @@
+# openrag-playground config
+# Tokens are AES-256-GCM encrypted with a key derived from the admin password.
+# RESET: delete config.yaml. The next visit will trigger the setup wizard.
+
+password_hash: "$2b$12$..."
+
+groups:
+  - id: legal
+    label: Legal Department
+    color: "#4F6EF7"
+    icon: scale
+
+  - id: hr
+    label: Human Resources
+    color: "#22D3A4"
+    icon: users
+
+demo_users:
+  - id: alice-martin
+    name: Alice Martin
+    title: Legal Counsel
+    group: legal
+    genre: female
+    avatar_color: "#E85D9A"
+    api_url: https://demo.open-rag.ai
+    token: "enc:v1:base64encodedciphertext..."
+
+  - id: bob-dubois
+    name: Bob Dubois
+    title: HR Manager
+    group: hr
+    genre: male
+    avatar_color: "#F59E0B"
+    api_url: https://cd35.open-rag.ai
+    token: "enc:v1:base64encodedciphertext..."
+
+demo_prompts:
+  - id: summarize-contract
+    label: Summarize latest contract
+    scope: "group:legal"
+    tags: [legal, summary]
+    prompt: |
+      Please summarize the key terms and obligations from
+      the most recent contract in this partition.

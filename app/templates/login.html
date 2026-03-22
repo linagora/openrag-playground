@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% from "partials/avatar.html" import avatar %}
+
+{% block title %}Sign In — OpenRAG Playground{% endblock %}
+
+{% block head %}
+<style>
+    .persona-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 0.75rem;
+    }
+    .persona-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        cursor: pointer;
+        transition: border-color 200ms ease, transform 150ms ease;
+        position: relative;
+    }
+    .persona-card:hover {
+        border-color: var(--text-subtle);
+        transform: translateY(-1px);
+    }
+    .persona-group-label {
+        position: absolute;
+        top: -0.5rem;
+        right: 1.2rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.1rem 0.5rem;
+        font-size: 0.625rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: var(--bg-base);
+        line-height: 1rem;
+        border: 1px solid var(--border);
+        border-radius: 0.25rem;
+    }
+    .persona-role {
+        position: absolute;
+        bottom: 0.5rem;
+        right: 0.75rem;
+    }
+    .persona-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.6875rem;
+        font-weight: 600;
+    }
+    .login-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 150ms ease;
+    }
+    .login-modal {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        padding: 2rem;
+        width: 100%;
+        max-width: 340px;
+        box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+        animation: scaleIn 150ms ease;
+    }
+    .fake-password {
+        color: var(--text-primary);
+    }
+    .signin-btn {
+        background: var(--accent);
+        color: white;
+        transition: opacity 150ms ease;
+    }
+    .signin-btn:hover {
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center" style="min-height: calc(100vh - 3rem);">
+    <div class="w-full max-w-3xl px-6">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <img src="{{ url_for('static', filename='images/Open-RAG_ico.svg') }}"
+                 alt="OpenRAG" class="h-12 w-12 mx-auto mb-2" title="{{ t('tooltip.openrag_playground') }}">
+            <h1 class="text-2xl font-bold">OpenRAG <span style="color: var(--accent);">Playground</span></h1>
+            <p class="text-sm mt-1" style="color: var(--text-muted);">{{ t('login.subtitle') }}</p>
+        </div>
+
+        {% if not grouped_users %}
+        <p class="text-sm text-center py-12" style="color: var(--text-subtle);">
+            {{ t('login.no_users') }}
+        </p>
+        {% else %}
+        <div class="persona-grid">
+            {% for section in grouped_users %}
+            {% for u in section.users %}
+            <div class="persona-card"
+                 data-user-id="{{ u.id }}"
+                 data-user-name="{{ u.name }}"
+                 data-user-title="{{ u.title }}"
+                 data-user-group="{{ section.group.label if section.group else '' }}"
+                 data-user-group-color="{{ section.group.color if section.group else '' }}"
+                 data-user-group-icon="{{ section.group.icon if section.group else '' }}"
+                 onclick="openLogin(this)"
+                 title="{{ t('tooltip.sign_in_as') }} {{ u.name }}">
+                {% if section.group %}
+                <div class="persona-group-label" style="color: {{ section.group.color }}; border-color: {{ section.group.color }}30;" title="{{ t('tooltip.group') }}: {{ section.group.label }}">
+                    <i data-lucide="{{ section.group.icon }}" class="w-3 h-3"></i>
+                    {{ section.group.label }}
+                </div>
+                {% endif %}
+                <span class="persona-role" hx-get="{{ url_for('chat.user_role_by_id', user_id=u.id) }}" hx-trigger="load" hx-swap="innerHTML"></span>
+                <div class="flex items-center gap-3">
+                    <span class="user-avatar">{{ avatar(u.name, u.get('genre', 'neutral'), u.get('avatar_color', '#4F6EF7'), 40) }}</span>
+                    <div class="min-w-0 flex-1">
+                        <div class="text-sm font-semibold truncate">{{ u.name }}</div>
+                        <div class="text-xs truncate" style="color: var(--text-muted);">{{ u.title }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Login overlay (hidden) -->
+<div id="login-overlay" class="login-overlay" style="display: none;" onclick="if(event.target===this)closeLogin()">
+    <div class="login-modal" style="position: relative;">
+        <div id="modal-group" style="position: absolute; top: -0.5rem; right: 1.2rem;"></div>
+        <div class="flex items-center gap-3 mb-4">
+            <div id="modal-avatar"></div>
+            <div class="min-w-0">
+                <div class="text-sm font-semibold" id="modal-name"></div>
+                <div class="text-xs" style="color: var(--text-muted);" id="modal-title"></div>
+            </div>
+        </div>
+        <div class="mb-4">
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('login.password') }}</label>
+            <div id="modal-fake-pw" class="w-full px-4 py-2.5 rounded-lg text-sm fake-password cursor-default"
+                 style="background: var(--bg-elevated); border: 1px solid var(--border); user-select: none;" title="{{ t('tooltip.prefilled_password') }}"></div>
+        </div>
+        <form method="POST" action="{{ url_for('demo.login') }}">
+            <input type="hidden" name="user_id" id="login-user-id" value="">
+            <button type="submit" class="signin-btn w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer" title="{{ t('tooltip.sign_in_start') }}">
+                {{ t('login.signin') }}
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+function openLogin(card) {
+    var svg = card.querySelector('.user-avatar svg');
+    document.getElementById('modal-avatar').innerHTML = svg ? svg.outerHTML : '';
+    document.getElementById('modal-name').textContent = card.getAttribute('data-user-name');
+    document.getElementById('modal-title').textContent = card.getAttribute('data-user-title');
+    var groupLabel = card.getAttribute('data-user-group');
+    var groupColor = card.getAttribute('data-user-group-color');
+    var groupIcon = card.getAttribute('data-user-group-icon');
+    var groupEl = document.getElementById('modal-group');
+    if (groupLabel) {
+        groupEl.innerHTML = '<span class="persona-group-label" style="color:' + groupColor + ';border-color:' + groupColor + '30;background:var(--bg-surface);position:static;"><i data-lucide="' + groupIcon + '" class="w-3 h-3"></i> ' + groupLabel + '</span>';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    } else {
+        groupEl.innerHTML = '';
+    }
+    document.getElementById('login-user-id').value = card.getAttribute('data-user-id');
+    var uid = card.getAttribute('data-user-id');
+    var h = 0;
+    for (var i = 0; i < uid.length; i++) h = ((h << 5) - h) + uid.charCodeAt(i);
+    var pwLen = 8 + (Math.abs(h) % 9);
+    document.getElementById('modal-fake-pw').textContent = '●'.repeat(pwLen);
+    document.getElementById('login-overlay').style.display = '';
+}
+function closeLogin() {
+    document.getElementById('login-overlay').style.display = 'none';
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeLogin();
+});
+</script>
+{% endblock %}

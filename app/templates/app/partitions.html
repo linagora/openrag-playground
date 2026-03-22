@@ -1,0 +1,37 @@
+{% for p in partitions %}
+{% set pid = p.id %}
+{% set raw_name = pid | replace('openrag-', '') %}
+{% set is_all = (pid == 'openrag-all') %}
+{% set display_name = raw_name if is_all else raw_name[strip_prefix | length:] %}
+{% set is_active = (pid == active) %}
+{% set is_child = not is_all %}
+{% set has_next = (not loop.last and is_child) %}
+{% set role = p.role %}
+<div class="partition-wrapper {{ 'has-next' if has_next }}" data-partition="{{ pid }}" data-raw="{{ raw_name }}" data-display="{{ display_name }}" data-role="{{ role or '' }}">
+    <div class="partition-row">
+        <button class="partition-item {{ 'active' if is_active }} {{ 'root' if is_all }} {{ 'partition-child' if is_child }} {{ 'has-next' if has_next }}"
+                onclick="selectPartition(this.closest('.partition-wrapper'))"
+                {% if not is_all %}ondblclick="event.stopPropagation();togglePartitionFiles(this.closest('.partition-wrapper'),'{{ raw_name }}')"{% endif %}
+                title="{{ t('tooltip.select_partition') }}: {{ display_name }}">
+            <i data-lucide="{{ 'folder-open' if is_active else 'folder' }}" class="w-4 h-4"></i>
+            <span class="flex-1">{{ display_name }}</span>
+            {% if role %}
+            <i data-lucide="{{ 'shield' if role == 'owner' else 'cloud-upload' if role == 'editor' else 'eye' }}"
+               class="w-3 h-3 shrink-0 partition-role-{{ role }}"
+               title="{{ role }}"></i>
+            {% endif %}
+            {% if role == 'owner' %}
+            <span class="partition-access-btn" onclick="event.stopPropagation();togglePartitionAccess(this,'{{ raw_name }}')" title="{{ t('tooltip.manage_access') if t is defined else 'Manage access' }}">
+                <i data-lucide="users" class="w-3 h-3"></i>
+            </span>
+            {% endif %}
+        </button>
+    </div>
+    {% if not is_all %}
+    <div class="partition-files" style="display:none;"></div>
+    {% if role == 'owner' %}
+    <div class="partition-access" style="display:none;"></div>
+    {% endif %}
+    {% endif %}
+</div>
+{% endfor %}

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="{{ lang() }}" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}OpenRAG Playground{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/Open-RAG_ico.svg') }}">
+
+    <!-- Vendored assets — zero external requests -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/tailwind.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+
+    <script src="{{ url_for('static', filename='vendor/htmx.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='vendor/htmx-sse.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='vendor/lucide.min.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+
+    {% block head %}{% endblock %}
+</head>
+<body>
+    {% block topbar %}
+    <div class="top-bar">
+        <button id="theme-toggle" type="button" title="{{ t('tooltip.toggle_theme') }}" aria-label="{{ t('tooltip.toggle_theme') }}">
+            <i data-lucide="moon" class="w-4 h-4"></i>
+        </button>
+        <select id="lang-select" title="{{ t('tooltip.language') }}" aria-label="{{ t('tooltip.language') }}">
+            <option value="en" {{ 'selected' if lang() == 'en' }}>EN</option>
+            <option value="fr" {{ 'selected' if lang() == 'fr' }}>FR</option>
+        </select>
+    </div>
+    {% endblock %}
+
+    {% block body %}
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    {% endblock %}
+
+    {% include "partials/footer.html" %}
+</body>
+</html>

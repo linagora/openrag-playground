@@ -1,0 +1,36 @@
+<!-- Inline edit form for a prompt -->
+<form hx-post="{{ url_for('admin.edit_prompt', idx=idx) }}"
+      hx-target="#tab-content" hx-swap="innerHTML"
+      class="rounded-lg p-4 mb-2"
+      style="background: var(--bg-elevated); border: 1px solid var(--accent);">
+    <div class="mb-3">
+        <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.prompt.scope') }}</label>
+        <select name="scope" class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+            <option value="global" {{ 'selected' if prompt.scope == 'global' }}>Global</option>
+            {% for g in groups %}
+            <option value="group:{{ g.id }}" {{ 'selected' if prompt.scope == 'group:' ~ g.id }}>{{ g.label }}</option>
+            {% endfor %}
+            {% for u in users %}
+            <option value="user:{{ u.id }}" {{ 'selected' if prompt.scope == 'user:' ~ u.id }}>{{ u.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-4">
+        <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.prompt.text') }} *</label>
+        <textarea name="prompt" required rows="3"
+                  class="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y"
+                  style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">{{ prompt.prompt }}</textarea>
+    </div>
+    <div class="flex gap-2">
+        <button type="submit" class="flex-1 py-2.5 rounded-lg text-sm font-semibold cursor-pointer transition-opacity hover:opacity-90"
+                style="background: var(--success); color: white;">
+            {{ t('admin.save') }}
+        </button>
+        <button type="button" hx-get="{{ url_for('admin.admin_tab', tab='prompts') }}" hx-target="#tab-content" hx-swap="innerHTML"
+                class="px-4 py-2.5 rounded-lg text-sm font-semibold cursor-pointer transition-opacity hover:opacity-90"
+                style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted);">
+            {{ t('admin.cancel') }}
+        </button>
+    </div>
+</form>

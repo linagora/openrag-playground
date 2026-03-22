@@ -1,0 +1,741 @@
+# Copyright 2026 LINAGORA
+# SPDX-License-Identifier: AGPL-3.0-only
+"""Chat routes — partition discovery, SSE streaming, sources."""
+
+import json
+
+import httpx
+from flask import (
+    Blueprint, render_template, request, session, Response, current_app,
+    stream_with_context, jsonify,
+)
+
+from app.yaml_store import load_config as load_yaml_config
+
+from app.i18n import t
+
+chat_bp = Blueprint("chat", __name__, url_prefix="/chat")
+
+
+def _get_credentials():
+    """Get token and API URL from session."""
+    return session.get("user_token"), session.get("user_api_url", "").rstrip("/")
+
+
+def _fetch_partitions(token, api_url):
+    """Fetch partitions from GET /v1/models, with roles from GET /partition/{name}."""
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        resp = httpx.get(f"{api_url}/v1/models", headers=headers, timeout=10.0)
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        models = data.get("data", [])
+        partitions = []
+        for m in models:
+            mid = m.get("id", "")
+            if mid.startswith("openrag-"):
+                partitions.append({"id": mid, "role": None})
+        # Sort: openrag-all first, then alphabetical
+        partitions.sort(key=lambda x: ("0" if x["id"] == "openrag-all" else "1") + x["id"])
+        # Fetch roles from GET /partition/ (list all with roles)
+        try:
+            r = httpx.get(f"{api_url}/partition/", headers=headers, timeout=5.0)
+            if r.status_code == 200:
+                body = r.json()
+                # Build role map from response
+                role_map = {}
+                items = body if isinstance(body, list) else body.get("partitions", [])
+                for item in items:
+                    pname = item.get("partition", item.get("name", ""))
+                    role = item.get("role", "")
+                    if pname and role:
+                        role_map[pname] = role
+                for p in partitions:
+                    name = p["id"].replace("openrag-", "")
+                    p["role"] = role_map.get(name)
+        except Exception:
+            pass
+        return partitions
+    except Exception:
+        return []
+
+
+def _common_prefix(partitions):
+    """Find common prefix among non-all partitions. Only strip if it ends with - _ or /."""
+    children = [p["id"].replace("openrag-", "") for p in partitions if p["id"] != "openrag-all"]
+    if len(children) < 2:
+        return ""
+    import os
+    prefix = os.path.commonprefix(children)
+    if prefix and prefix[-1] in "-_/":
+        return prefix
+    # Trim to last separator
+    for sep in "-_/":
+        idx = prefix.rfind(sep)
+        if idx >= 0:
+            return prefix[: idx + 1]
+    return ""
+
+
+@chat_bp.route("/partitions")
+def partitions():
+    """Return partition tree as HTML fragment."""
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    parts = _fetch_partitions(token, api_url)
+    active = session.get("active_partition", parts[0]["id"] if parts else "openrag-all")
+    prefix = _common_prefix(parts)
+    session["partition_prefix"] = prefix
+    # OOB swap to update header label on initial load too
+    display = active.replace("openrag-", "")
+    if prefix and active != "openrag-all":
+        display = display[len(prefix):]
+    active_role = ""
+    for p in parts:
+        if p["id"] == active:
+            active_role = p.get("role") or ""
+            break
+    oob = f'<span id="partition-label" hx-swap-oob="true" class="text-sm font-semibold" data-role="{active_role}">{display}</span>'
+    return render_template("app/partitions.html", partitions=parts, active=active, strip_prefix=prefix) + oob
+
+
+def _role_badge(is_admin):
+    if is_admin:
+        return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px" style="font-size:9px;font-weight:600;background:rgba(199,31,69,0.15);color:var(--accent);">admin</span>'
+    return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px" style="font-size:9px;font-weight:600;background:rgba(34,211,164,0.15);color:var(--success);">user</span>'
+
+
+def _check_role(api_url, token):
+    """Call GET /users/info and return is_admin bool or None on failure."""
+    try:
+        resp = httpx.get(
+            f"{api_url}/users/info",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=5.0,
+        )
+        if resp.status_code == 200:
+            return resp.json().get("is_admin", False)
+    except Exception:
+        pass
+    return None
+
+
+def _file_icon(filename):
+    """Return a Lucide icon name based on file extension."""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext in ("mp3", "wav", "ogg", "flac", "m4a", "aac"):
+        return "audio-lines"
+    if ext in ("mp4", "webm", "mov", "avi", "mkv"):
+        return "file-play"
+    if ext in ("jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"):
+        return "image"
+    if ext in ("eml", "msg"):
+        return "mail"
+    return "file-text"
+
+
+def _file_media_type(filename):
+    """Return 'audio', 'video', 'image', 'pdf', or 'text' for display."""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext in ("mp3", "wav", "ogg", "flac", "m4a", "aac"):
+        return "audio"
+    if ext in ("mp4", "webm", "mov", "avi", "mkv"):
+        return "video"
+    if ext in ("jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"):
+        return "image"
+    if ext == "pdf":
+        return "pdf"
+    return "text"
+
+
+@chat_bp.route("/partition-stats")
+def partition_stats():
+    """Return doc + chunk counts for the active partition as an HTML fragment."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    partition = session.get("active_partition", "openrag-all").replace("openrag-", "")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    def _count_files():
+        try:
+            r = httpx.get(f"{api_url}/partition/{partition}", headers=headers, timeout=10.0)
+            return len(r.json().get("files", [])) if r.status_code == 200 else 0
+        except Exception:
+            return 0
+
+    def _count_chunks():
+        try:
+            r = httpx.get(
+                f"{api_url}/partition/{partition}/chunks",
+                params={"include_embedding": "false"},
+                headers=headers, timeout=15.0,
+            )
+            if r.status_code != 200:
+                return 0
+            data = r.json()
+            items = data if isinstance(data, list) else data.get("chunks", data.get("documents", []))
+            return len(items)
+        except Exception:
+            return 0
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f_files = pool.submit(_count_files)
+        f_chunks = pool.submit(_count_chunks)
+        file_count = f_files.result()
+        chunk_count = f_chunks.result()
+    if file_count == 0 and chunk_count == 0:
+        return '<span id="partition-stats" class="text-[10px]" style="color:var(--text-subtle);">—</span>'
+    parts = []
+    if file_count:
+        label = t("stats.files") if file_count != 1 else t("stats.file")
+        parts.append(f'<i data-lucide="file" style="width:11px;height:11px;display:inline;vertical-align:-1px;"></i> {file_count} {label}')
+    if chunk_count:
+        label = t("stats.chunks") if chunk_count != 1 else t("stats.chunk")
+        parts.append(f'<i data-lucide="puzzle" style="width:11px;height:11px;display:inline;vertical-align:-1px;"></i> {chunk_count} {label}')
+    text = ' <span style="opacity:0.4;">·</span> '.join(parts)
+    return f'<span id="partition-stats" class="text-[10px]" style="color:var(--text-muted);">{text}</span>'
+
+
+@chat_bp.route("/partition-files/<partition>")
+def partition_files(partition):
+    """Return last 10 files for a partition as HTML fragment."""
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    try:
+        resp = httpx.get(
+            f"{api_url}/partition/{partition}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10.0,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            files = data.get("files", [])
+            files = sorted(files, key=lambda f: f.get("created_at", ""), reverse=True)[:10]
+            for f in files:
+                fname = f.get("original_filename", f.get("filename", f.get("file_id", "")))
+                f["icon"] = _file_icon(fname)
+                f["media_type"] = _file_media_type(fname)
+            return render_template("app/files.html", files=files, partition=partition)
+    except Exception:
+        pass
+    return '<div class="text-xs px-6 py-1" style="color:var(--text-subtle);">—</div>'
+
+
+@chat_bp.route("/file-chunks/<partition>/<path:file_id>")
+def file_chunks(partition, file_id):
+    """Return first 10 chunks for a file as HTML fragment."""
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    try:
+        headers = {"Authorization": f"Bearer {token}"}
+        # Step 1: get document links
+        resp = httpx.get(
+            f"{api_url}/partition/{partition}/file/{file_id}",
+            headers=headers, timeout=10.0,
+        )
+        if resp.status_code != 200:
+            return '<div class="text-xs px-8 py-1" style="color:var(--text-subtle);">—</div>'
+        data = resp.json()
+        docs = data.get("documents", [])[:10]
+        # Step 2: fetch each chunk's page_content from its extract link
+        chunks = []
+        for doc in docs:
+            link = doc.get("link", "")
+            if not link:
+                continue
+            # Normalize: match the API URL scheme (http→https if needed)
+            if api_url.startswith("https://") and link.startswith("http://"):
+                link = "https://" + link[7:]
+            try:
+                r = httpx.get(link, headers=headers, timeout=10.0)
+                if r.status_code == 200:
+                    extract = r.json()
+                    text = extract.get("page_content", "")
+                    # Strip [CONTEXT] prefix
+                    if text.startswith("[CONTEXT] "):
+                        text = text[10:]
+                    elif text.startswith("[CONTEXT]"):
+                        text = text[9:]
+                    chunks.append({
+                        "text": text,
+                        "page": extract.get("metadata", {}).get("page"),
+                    })
+            except Exception:
+                pass
+        return render_template("app/chunks.html", chunks=chunks, partition=partition, file_id=file_id)
+    except Exception:
+        pass
+    return '<div class="text-xs px-8 py-1" style="color:var(--text-subtle);">—</div>'
+
+
+@chat_bp.route("/delete-file/<partition>/<path:file_id>", methods=["DELETE"])
+def delete_file(partition, file_id):
+    """Delete a file from a partition via the indexer API."""
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    try:
+        resp = httpx.delete(
+            f"{api_url}/indexer/partition/{partition}/file/{file_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10.0,
+        )
+        if resp.status_code in (200, 204):
+            return "", 204
+        return "", resp.status_code
+    except Exception:
+        return "", 500
+
+
+@chat_bp.route("/file-proxy/<partition>/<path:file_id>")
+def file_proxy(partition, file_id):
+    """Proxy a file from the OpenRAG server for display in browser."""
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        # Try multiple download endpoints
+        for url in [
+            f"{api_url}/partition/{partition}/file/{file_id}/download",
+            f"{api_url}/indexer/partition/{partition}/file/{file_id}/download",
+            f"{api_url}/partition/{partition}/file/{file_id}/source",
+        ]:
+            resp = httpx.get(url, headers=headers, timeout=30.0)
+            if resp.status_code == 200 and len(resp.content) > 0:
+                from flask import make_response
+                r = make_response(resp.content)
+                ct = resp.headers.get("content-type", "application/octet-stream")
+                r.headers["Content-Type"] = ct
+                r.headers["Content-Disposition"] = f'inline; filename="{file_id}"'
+                return r
+    except Exception:
+        pass
+    return "", 404
+
+
+@chat_bp.route("/partition-access/<partition>")
+def partition_access(partition):
+    """Get current access list for a partition."""
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    try:
+        resp = httpx.get(
+            f"{api_url}/partition/{partition}/access",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10.0,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            users = data if isinstance(data, list) else data.get("users", data.get("access", []))
+            return render_template("app/access.html", users=users, partition=partition)
+    except Exception:
+        pass
+    return '<div class="text-xs px-2 py-1" style="color:var(--text-subtle);">—</div>'
+
+
+@chat_bp.route("/partition-access/<partition>/grant", methods=["POST"])
+def grant_access(partition):
+    """Grant access to a user on a partition."""
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    email = request.form.get("email", "").strip()
+    role = request.form.get("role", "viewer")
+    if not email:
+        return "", 400
+    try:
+        resp = httpx.post(
+            f"{api_url}/partition/{partition}/access",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"external_user_id": email, "role": role},
+            timeout=10.0,
+        )
+        # Refresh the access list
+        return partition_access(partition)
+    except Exception:
+        pass
+    return partition_access(partition)
+
+
+@chat_bp.route("/partition-access/<partition>/update", methods=["POST"])
+def update_access(partition):
+    """Update a user's role on a partition."""
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    email = request.form.get("email", "").strip()
+    role = request.form.get("role", "viewer")
+    if not email:
+        return "", 400
+    try:
+        httpx.put(
+            f"{api_url}/partition/{partition}/access",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"external_user_id": email, "role": role},
+            timeout=10.0,
+        )
+    except Exception:
+        pass
+    return partition_access(partition)
+
+
+@chat_bp.route("/partition-access/<partition>/revoke", methods=["POST"])
+def revoke_access(partition):
+    """Revoke a user's access to a partition."""
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    email = request.form.get("email", "").strip()
+    if not email:
+        return "", 400
+    try:
+        httpx.delete(
+            f"{api_url}/partition/{partition}/access",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"external_user_id": email},
+            timeout=10.0,
+        )
+    except Exception:
+        pass
+    return partition_access(partition)
+
+
+@chat_bp.route("/upload", methods=["POST"])
+def upload_file():
+    """Upload a file to the active partition."""
+    token, api_url = _get_credentials()
+    if not token or not api_url:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    partition = session.get("active_partition", "openrag-all").replace("openrag-", "")
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return jsonify({"error": "No file selected"}), 400
+
+    file_id = file.filename
+    try:
+        resp = httpx.post(
+            f"{api_url}/indexer/partition/{partition}/file/{file_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"file": (file.filename, file.stream, file.content_type)},
+            timeout=60.0,
+        )
+        if resp.status_code in (200, 201, 202):
+            data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+            task_id = data.get("task_id", "")
+            return jsonify({"ok": True, "task_id": task_id})
+        return jsonify({"error": f"Upload failed (HTTP {resp.status_code})"}), resp.status_code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@chat_bp.route("/upload/status/<task_id>")
+def upload_status(task_id):
+    """Poll indexing task status."""
+    token, api_url = _get_credentials()
+    if not token or not api_url:
+        return jsonify({"status": "error"}), 401
+    try:
+        resp = httpx.get(
+            f"{api_url}/indexer/task/{task_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=5.0,
+        )
+        if resp.status_code == 200:
+            return resp.json()
+        return jsonify({"status": "error"}), resp.status_code
+    except Exception:
+        return jsonify({"status": "error"}), 500
+
+
+def _normalize(text):
+    """Remove accents for accent-insensitive matching (French collation)."""
+    import unicodedata
+    return unicodedata.normalize("NFD", text.lower()).encode("ascii", "ignore").decode()
+
+
+@chat_bp.route("/render-markdown", methods=["POST"])
+def render_markdown():
+    """Render markdown text to HTML."""
+    import markdown
+    text = request.form.get("text", "")
+    html = markdown.markdown(text, extensions=["tables", "fenced_code"])
+    return html
+
+
+@chat_bp.route("/save-prompt", methods=["POST"])
+def save_prompt():
+    """Save a prompt from chat history to config.yaml."""
+    prompt_text = request.form.get("prompt", "").strip()
+    scope = request.form.get("scope", "global")
+    if not prompt_text:
+        return "", 400
+    config = load_yaml_config()
+    if not config:
+        return "", 500
+    prompts = config.get("demo_prompts", [])
+    prompts.append({"scope": scope, "prompt": prompt_text})
+    config["demo_prompts"] = prompts
+    from app.yaml_store import save_config
+    save_config(config)
+    return '<span class="text-[10px]" style="color:var(--success);">&#10003;</span>'
+
+
+@chat_bp.route("/suggestions")
+def suggestions():
+    """Return prompt suggestions filtered by scope for the current user."""
+    query = _normalize(request.args.get("q", "").lstrip("/"))
+    config = load_yaml_config()
+    if not config:
+        return ""
+    demo_user = session.get("demo_user", {})
+    user_id = demo_user.get("id", "")
+    user_group = demo_user.get("group", "")
+
+    active_partition = session.get("active_partition", "openrag-all").replace("openrag-", "")
+    prefix = session.get("partition_prefix", "")
+
+    prompts = config.get("demo_prompts", [])
+    filtered = []
+    for p in prompts:
+        scope = p.get("scope", "global")
+        if scope == "global":
+            pass
+        elif scope.startswith("group:") and scope.split(":", 1)[1] != user_group:
+            continue
+        elif scope.startswith("partition:"):
+            # Match partition name with or without prefix
+            pname = scope.split(":", 1)[1]
+            if pname != active_partition and pname != active_partition.replace(prefix, "", 1):
+                continue
+        elif scope.startswith("user:") and scope.split(":", 1)[1] != user_id:
+            continue
+        if query and query not in _normalize(p.get("prompt", "")):
+            continue
+        filtered.append(p)
+
+    if not filtered:
+        return ""
+    return render_template("app/suggestions.html", prompts=filtered)
+
+
+@chat_bp.route("/health-check")
+def health_check():
+    """Check OpenRAG API health via GET /health_check."""
+    token, api_url = _get_credentials()
+    if not token or not api_url:
+        return ""
+    from markupsafe import escape
+    health_url = f"{api_url}/health"
+    safe_url = escape(health_url)
+    try:
+        resp = httpx.get(
+            f"{api_url}/health_check",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=5.0,
+        )
+        if resp.status_code == 200:
+            return f' <span class="separator">&middot;</span> <a href="{safe_url}" target="_blank" rel="noopener" style="color:var(--success);">&#9679; online</a>'
+        return f' <span class="separator">&middot;</span> <a href="{safe_url}" target="_blank" rel="noopener" style="color:var(--danger);">&#9679; error</a>'
+    except Exception:
+        return f' <span class="separator">&middot;</span> <a href="{safe_url}" target="_blank" rel="noopener" style="color:var(--danger);">&#9679; offline</a>'
+
+
+@chat_bp.route("/user-role")
+def user_role():
+    """Check if current session user is admin via GET /users/info."""
+    token, api_url = _get_credentials()
+    if not token or not api_url:
+        return ""
+    result = _check_role(api_url, token)
+    if result is None:
+        return ""
+    return _role_badge(result)
+
+
+@chat_bp.route("/user-role/<user_id>")
+def user_role_by_id(user_id):
+    """Check if a specific demo user is admin (for login page)."""
+    from app.yaml_store import load_config
+    from app.crypto import decrypt_token as do_decrypt
+    config = load_config()
+    password = current_app.config.get("ADMIN_PASSWORD")
+    if not config or not password:
+        return ""
+    user = None
+    for u in config.get("demo_users", []):
+        if u["id"] == user_id:
+            user = u
+            break
+    if not user:
+        return ""
+    try:
+        token = do_decrypt(user["token"], password, user["id"])
+    except Exception:
+        return ""
+    api_url = user.get("api_url", "").rstrip("/")
+    result = _check_role(api_url, token)
+    if result is None:
+        return ""
+    return _role_badge(result)
+
+
+@chat_bp.route("/api-version")
+def api_version():
+    """Fetch OpenRAG version from /version endpoint."""
+    token, api_url = _get_credentials()
+    if not token or not api_url:
+        return ""
+    try:
+        resp = httpx.get(
+            f"{api_url}/version",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=5.0,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            version = data.get("version", data.get("app_version", str(data)))
+            from markupsafe import escape
+            safe_url = escape(api_url)
+            safe_ver = escape(version)
+            return (
+                f' <span class="separator">&middot;</span> '
+                f'<a href="{safe_url}/indexerui/" target="_blank" rel="noopener">OpenRAG {safe_ver}</a>'
+            )
+    except Exception:
+        pass
+    return ""
+
+
+@chat_bp.route("/select-partition", methods=["POST"])
+def select_partition():
+    """Set active partition in session."""
+    partition = request.form.get("partition", "openrag-all")
+    session["active_partition"] = partition
+    token, api_url = _get_credentials()
+    parts = _fetch_partitions(token, api_url)
+    prefix = _common_prefix(parts)
+    session["partition_prefix"] = prefix
+    display = partition.replace("openrag-", "")
+    if prefix and partition != "openrag-all":
+        display = display[len(prefix):]
+    active_role = ""
+    for p in parts:
+        if p["id"] == partition:
+            active_role = p.get("role") or ""
+            break
+    tree_html = render_template("app/partitions.html", partitions=parts, active=partition, strip_prefix=prefix)
+    oob = f'<span id="partition-label" hx-swap-oob="true" class="text-sm font-semibold" data-role="{active_role}">{display}</span>'
+    return tree_html + oob
+
+
+def _friendly_error(status_code, body):
+    """Turn an API error into a human-readable message in the user's language."""
+    detail = ""
+    try:
+        err = json.loads(body)
+        detail = err.get("detail", "")
+    except Exception:
+        pass
+
+    if "EMBEDDING" in detail.upper() or "embedding" in detail.lower():
+        return t("chat.error.embedding")
+    if status_code in (401, 403):
+        return t("chat.error.auth")
+    if status_code == 503 or "unavailable" in detail.lower():
+        return t("chat.error.unavailable")
+    return t("chat.error.generic")
+
+
+def _sse_event(event, data):
+    """Format an SSE event, handling multi-line data."""
+    lines = data.replace("\n", "")  # SSE data must be single-line for simple cases
+    return f"event: {event}\ndata: {lines}\n\n"
+
+
+@chat_bp.route("/stream")
+def chat_stream():
+    """SSE endpoint — streams chat tokens then sources."""
+    message = request.args.get("message", "").strip()
+    if not message:
+        return "", 400
+
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+
+    partition = session.get("active_partition", "openrag-all")
+
+    def generate():
+        sources = []
+        url = f"{api_url}/v1/chat/completions"
+        try:
+            with httpx.stream(
+                "POST",
+                url,
+                headers={"Authorization": f"Bearer {token}"},
+                json={
+                    "model": partition,
+                    "messages": [{"role": "user", "content": message}],
+                    "stream": True,
+                },
+                timeout=60.0,
+            ) as response:
+                if response.status_code != 200:
+                    body = response.read().decode()
+                    msg = _friendly_error(response.status_code, body)
+                    yield _sse_event("token", f"<span style='color:var(--danger)'>{msg}</span>")
+                    yield "event: done\ndata: \n\n"
+                    return
+                for line in response.iter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[6:]
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+                    choices = chunk.get("choices", [])
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta", {})
+                    token_text = delta.get("content", "")
+                    # Capture sources
+                    extra = chunk.get("extra", {})
+                    if "sources" in extra:
+                        sources.extend(extra["sources"])
+                    if token_text:
+                        html = f"<span>{token_text}</span>"
+                        yield _sse_event("token", html)
+        except httpx.ConnectError:
+            yield _sse_event("token", f"<span style='color:var(--danger)'>{t('chat.error.unavailable')}</span>")
+        except httpx.TimeoutException:
+            yield _sse_event("token", f"<span style='color:var(--danger)'>{t('chat.error.timeout')}</span>")
+        except Exception as e:
+            yield _sse_event("token", f"<span style='color:var(--danger)'>{t('chat.error.generic')}</span>")
+
+        # Send sources after stream ends
+        if sources:
+            sources_html = render_template("app/sources.html", sources=sources)
+            yield _sse_event("sources", sources_html)
+        yield "event: done\ndata: \n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache",
+        },
+    )

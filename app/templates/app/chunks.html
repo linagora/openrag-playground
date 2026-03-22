@@ -1,0 +1,15 @@
+{% for c in chunks %}
+{% set text = (c.get('text', '') if c is mapping else c) | replace('[CONTEXT] ', '') | replace('[CONTEXT]', '') %}
+{% if text %}
+<div class="chunk-item" onclick="viewChunk(this)" data-chunk="{{ text | e }}">
+    <i data-lucide="text" class="w-2.5 h-2.5 shrink-0" style="color: var(--text-subtle);"></i>
+    <span class="truncate flex-1">{{ text | truncate(60) }}</span>
+    {% if c is mapping and c.get('page') %}
+    <span class="text-[9px]" style="color: var(--text-subtle);">p.{{ c.page }}</span>
+    {% endif %}
+</div>
+{% endif %}
+{% endfor %}
+{% if not chunks %}
+<div style="color: var(--text-subtle); font-size: 0.6875rem; padding: 0.25rem 0.5rem;">No chunks</div>
+{% endif %}

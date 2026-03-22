@@ -1,0 +1,13 @@
+<div class="confirm-overlay" onclick="if(event.target===this)this.remove()">
+    <div class="confirm-box" style="max-width: 520px; max-height: 80vh; overflow-y: auto;">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-bold">{{ title }}</h3>
+            <button onclick="this.closest('.confirm-overlay').remove()" class="cursor-pointer" style="color: var(--text-muted);">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="text-sm" style="color: var(--text-muted); line-height: 1.7;">
+            {{ content | safe }}
+        </div>
+    </div>
+</div>

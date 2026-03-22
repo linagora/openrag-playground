@@ -1,0 +1,7 @@
+flask
+httpx
+pyyaml
+bcrypt
+cryptography
+gunicorn
+markdown

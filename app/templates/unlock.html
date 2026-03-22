@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Unlock — OpenRAG Playground{% endblock %}
+
+{% block head %}
+<style>
+    .unlock-input {
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        color: var(--text-primary);
+        transition: border-color 200ms ease;
+    }
+    .unlock-input:focus {
+        border-color: var(--accent);
+        outline: none;
+    }
+    .unlock-btn {
+        background: var(--accent);
+        color: white;
+        transition: opacity 150ms ease;
+    }
+    .unlock-btn:hover {
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center" style="min-height: calc(100vh - 3rem);">
+    <div class="w-full max-w-md px-6 text-center">
+        <img src="{{ url_for('static', filename='images/Open-RAG_ico.svg') }}"
+             alt="OpenRAG" class="h-14 w-14 mx-auto mb-2" title="{{ t('tooltip.openrag_playground') }}">
+        <h1 class="text-2xl font-bold mb-1">{{ t('unlock.title') }}</h1>
+        <p class="text-sm mb-8" style="color: var(--text-muted);">{{ t('unlock.subtitle') }}</p>
+
+        {% if error %}
+        <div class="mb-4 px-3 py-2 rounded-lg text-xs text-left"
+             style="background: rgba(244,63,94,0.08); color: var(--danger);">
+            {{ t('unlock.error') }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('auth.unlock') }}">
+            {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+            <input type="password" name="password" placeholder="{{ t('unlock.placeholder') }}"
+                   autofocus required title="{{ t('tooltip.enter_password') }}"
+                   class="unlock-input w-full px-4 py-3 rounded-lg text-sm mb-4">
+            <button type="submit" class="unlock-btn w-full py-3 rounded-lg text-sm font-semibold cursor-pointer" title="{{ t('tooltip.unlock') }}">
+                {{ t('unlock.button') }}
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

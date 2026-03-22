@@ -1,0 +1,25 @@
+<footer class="footer" style="justify-content: flex-start;">
+    <div class="footer-center" style="justify-content: flex-start;">
+        <span>&copy; {{ current_year }} <a href="https://linagora.com" target="_blank" rel="noopener">LINAGORA</a></span>
+        <span class="separator">&middot;</span>
+        <a href="#" hx-get="/about" hx-target="#modal" hx-swap="innerHTML" title="{{ t('tooltip.about') }}">{{ t('footer.about') }}</a>
+        <span class="separator">&middot;</span>
+        <a href="#" hx-get="/gdpr" hx-target="#modal" hx-swap="innerHTML" title="{{ t('tooltip.data_protection') }}">{{ t('footer.gdpr') }}</a>
+        <span class="separator">&middot;</span>
+        <a href="#" hx-get="/ai-act" hx-target="#modal" hx-swap="innerHTML" title="{{ t('tooltip.ai_transparency') }}">{{ t('footer.ai_act') }}</a>
+        <span class="separator">&middot;</span>
+        <a href="#" hx-get="/sovereignty" hx-target="#modal" hx-swap="innerHTML" title="{{ t('tooltip.digital_sovereignty') }}">{{ t('footer.sovereignty') }}</a>
+        <span class="separator">&middot;</span>
+        <a href="#" hx-get="/legal" hx-target="#modal" hx-swap="innerHTML" title="{{ t('tooltip.legal_notice') }}">{{ t('footer.legal') }}</a>
+        {% if session.get('demo_user') %}
+        <span id="footer-version" hx-get="/chat/api-version" hx-trigger="load" hx-swap="outerHTML" title="{{ t('tooltip.api_version') }}"></span>
+        <span id="footer-health" hx-get="/chat/health-check" hx-trigger="load" hx-swap="innerHTML"></span>
+        {% endif %}
+    </div>
+
+    <a href="https://linagora.com" target="_blank" rel="noopener" class="footer-logo" title="{{ t('tooltip.visit_linagora') }}">
+        <img src="{{ url_for('static', filename='images/LINAGORA.svg') }}" alt="LINAGORA" class="h-5">
+    </a>
+
+    <div id="modal"></div>
+</footer>

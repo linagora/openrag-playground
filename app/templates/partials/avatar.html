@@ -1,0 +1,23 @@
+{% macro avatar(name, genre="neutral", color="#4F6EF7", size=48) %}
+{% set initials = name.split()[0][0] ~ (name.split()[-1][0] if name.split()|length > 1 else '') %}
+{% set r = size // 2 %}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 {{ size }} {{ size }}" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="{{ r }}" cy="{{ r }}" r="{{ r }}" fill="{{ color }}"/>
+  {% if genre == "female" %}
+  {# Female silhouette — rounded head + shoulders with longer hair hint #}
+  <ellipse cx="{{ r }}" cy="{{ r * 0.62 }}" rx="{{ r * 0.28 }}" ry="{{ r * 0.3 }}" fill="rgba(255,255,255,0.18)"/>
+  <ellipse cx="{{ r }}" cy="{{ r * 1.45 }}" rx="{{ r * 0.42 }}" ry="{{ r * 0.32 }}" fill="rgba(255,255,255,0.12)"/>
+  {% elif genre == "male" %}
+  {# Male silhouette — slightly squared head + broader shoulders #}
+  <ellipse cx="{{ r }}" cy="{{ r * 0.6 }}" rx="{{ r * 0.26 }}" ry="{{ r * 0.28 }}" fill="rgba(255,255,255,0.18)"/>
+  <ellipse cx="{{ r }}" cy="{{ r * 1.45 }}" rx="{{ r * 0.46 }}" ry="{{ r * 0.3 }}" fill="rgba(255,255,255,0.12)"/>
+  {% else %}
+  {# Neutral silhouette #}
+  <circle cx="{{ r }}" cy="{{ r * 0.62 }}" r="{{ r * 0.27 }}" fill="rgba(255,255,255,0.18)"/>
+  <ellipse cx="{{ r }}" cy="{{ r * 1.45 }}" rx="{{ r * 0.44 }}" ry="{{ r * 0.31 }}" fill="rgba(255,255,255,0.12)"/>
+  {% endif %}
+  <text x="{{ r }}" y="{{ r }}" text-anchor="middle" dominant-baseline="central"
+        font-family="'Atkinson Hyperlegible', system-ui, sans-serif" font-weight="700"
+        font-size="{{ size * 0.36 }}" fill="white" style="text-transform: uppercase;">{{ initials }}</text>
+</svg>
+{% endmacro %}

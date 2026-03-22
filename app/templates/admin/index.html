@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Admin — OpenRAG Playground{% endblock %}
+
+{% block head %}
+<style>
+    .tab-btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        border-radius: 0.5rem 0.5rem 0 0;
+        cursor: pointer;
+        transition: background 150ms ease, color 150ms ease;
+        background: transparent;
+        color: var(--text-muted);
+        border: 1px solid transparent;
+        border-bottom: none;
+    }
+    .tab-btn:hover {
+        color: var(--text-primary);
+    }
+    .tab-btn.active {
+        background: var(--bg-surface);
+        color: var(--accent);
+        border-color: var(--border);
+    }
+    .tab-bar {
+        border-bottom: 1px solid var(--border);
+    }
+    #tab-content {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-top: none;
+        border-radius: 0 0 0.75rem 0.75rem;
+        padding: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-6 py-10">
+    <!-- Header -->
+    <div class="flex items-center gap-4 mb-8">
+        <img src="{{ url_for('static', filename='images/Open-RAG_ico.svg') }}"
+             alt="OpenRAG" class="h-10 w-10" title="{{ t('tooltip.openrag_playground') }}">
+        <div>
+            <h1 class="text-2xl font-bold">{{ t('admin.title') }}</h1>
+            <p class="text-sm" style="color: var(--text-muted);">{{ t('admin.subtitle') }}</p>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar flex gap-1">
+        <button class="tab-btn {{ 'active' if tab == 'groups' }}"
+                hx-get="{{ url_for('admin.admin_tab', tab='groups') }}"
+                hx-target="#tab-content" hx-swap="innerHTML"
+                onclick="setActiveTab(this)" title="{{ t('tooltip.manage_groups') }}">
+            <i data-lucide="folder" class="w-4 h-4 inline-block mr-1" style="vertical-align: -2px;"></i>
+            {{ t('admin.groups') }}
+        </button>
+        <button class="tab-btn {{ 'active' if tab == 'users' }}"
+                hx-get="{{ url_for('admin.admin_tab', tab='users') }}"
+                hx-target="#tab-content" hx-swap="innerHTML"
+                onclick="setActiveTab(this)" title="{{ t('tooltip.manage_users') }}">
+            <i data-lucide="users" class="w-4 h-4 inline-block mr-1" style="vertical-align: -2px;"></i>
+            {{ t('admin.users') }}
+        </button>
+        <button class="tab-btn {{ 'active' if tab == 'prompts' }}"
+                hx-get="{{ url_for('admin.admin_tab', tab='prompts') }}"
+                hx-target="#tab-content" hx-swap="innerHTML"
+                onclick="setActiveTab(this)" title="{{ t('tooltip.manage_prompts') }}">
+            <i data-lucide="message-square" class="w-4 h-4 inline-block mr-1" style="vertical-align: -2px;"></i>
+            {{ t('admin.prompts') }}
+        </button>
+    </div>
+
+    <!-- Tab content -->
+    <div id="tab-content">
+        {% if tab == 'users' %}
+            {% include "admin/_users.html" %}
+        {% elif tab == 'prompts' %}
+            {% include "admin/_prompts.html" %}
+        {% else %}
+            {% include "admin/_groups.html" %}
+        {% endif %}
+    </div>
+
+    <!-- Back to app -->
+    <div class="text-center mt-8">
+        <a href="{{ url_for('index') }}" class="text-sm transition-colors duration-150 hover:underline" style="color: var(--text-muted);" title="{{ t('tooltip.back_to_app') }}">
+            {{ t('admin.back_to_app') }}
+        </a>
+    </div>
+</div>
+
+<script>
+function setActiveTab(el) {
+    document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
+    el.classList.add('active');
+}
+</script>
+{% endblock %}

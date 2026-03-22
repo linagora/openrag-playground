@@ -1,0 +1,76 @@
+<!-- Inline edit form for a user -->
+<form hx-post="{{ url_for('admin.edit_user', idx=idx) }}"
+      hx-target="#tab-content" hx-swap="innerHTML"
+      class="rounded-lg p-4 mb-2"
+      style="background: var(--bg-elevated); border: 1px solid var(--accent);">
+    <div class="grid grid-cols-3 gap-3 mb-3">
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.name') }} *</label>
+            <input type="text" name="name" required value="{{ user.name }}"
+                   class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                   style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+        </div>
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.title') }}</label>
+            <input type="text" name="title" value="{{ user.title }}"
+                   class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                   style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+        </div>
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.email') }}</label>
+            <input type="email" name="email" value="{{ user.email or '' }}"
+                   class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                   style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+        </div>
+    </div>
+    <div class="grid grid-cols-3 gap-3 mb-3">
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.group') }} *</label>
+            <select name="group" required class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+                <option value="">—</option>
+                {% for g in groups %}
+                <option value="{{ g.id }}" {{ 'selected' if user.group == g.id }}>{{ g.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.genre') }}</label>
+            <select name="genre" class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+                <option value="female" {{ 'selected' if user.genre == 'female' }}>Female</option>
+                <option value="male" {{ 'selected' if user.genre == 'male' }}>Male</option>
+                <option value="neutral" {{ 'selected' if user.genre == 'neutral' }}>Neutral</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.color') }}</label>
+            <input type="color" name="avatar_color" value="{{ user.avatar_color }}"
+                   class="w-full h-[34px] rounded-lg cursor-pointer border-0"
+                   style="background: var(--bg-surface);">
+        </div>
+    </div>
+    <div class="mb-3">
+        <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.api_url') }}</label>
+        <input type="url" name="api_url" value="{{ user.api_url }}"
+               class="w-full px-3 py-2 rounded-lg text-sm outline-none"
+               style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+    </div>
+    <div class="mb-4">
+        <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('admin.user.token') }} <span style="color: var(--text-subtle);">({{ t('admin.user.token_leave_empty') }})</span></label>
+        <input type="text" name="token" placeholder="sk-..."
+               class="w-full px-3 py-2 rounded-lg text-sm outline-none font-mono"
+               style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary);">
+    </div>
+    <div class="flex gap-2">
+        <button type="submit" class="flex-1 py-2.5 rounded-lg text-sm font-semibold cursor-pointer transition-opacity hover:opacity-90"
+                style="background: var(--success); color: white;">
+            {{ t('admin.save') }}
+        </button>
+        <button type="button" hx-get="{{ url_for('admin.admin_tab', tab='users') }}" hx-target="#tab-content" hx-swap="innerHTML"
+                class="px-4 py-2.5 rounded-lg text-sm font-semibold cursor-pointer transition-opacity hover:opacity-90"
+                style="background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-muted);">
+            {{ t('admin.cancel') }}
+        </button>
+    </div>
+</form>

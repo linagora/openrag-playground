@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Setup — OpenRAG Playground{% endblock %}
+
+{% block head %}
+<style>
+    .setup-input {
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        color: var(--text-primary);
+        transition: border-color 200ms ease;
+    }
+    .setup-input:focus {
+        border-color: var(--accent);
+        outline: none;
+    }
+    .setup-btn {
+        background: var(--accent);
+        color: white;
+        transition: opacity 150ms ease;
+    }
+    .setup-btn:hover {
+        opacity: 0.9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-center" style="min-height: calc(100vh - 3rem);">
+    <div class="w-full max-w-md px-6 text-center">
+        <img src="{{ url_for('static', filename='images/Open-RAG_ico.svg') }}"
+             alt="OpenRAG" class="h-14 w-14 mx-auto mb-2">
+        <h1 class="text-2xl font-bold mb-1">{{ t('setup.title') }}</h1>
+        <p class="text-sm mb-8" style="color: var(--text-muted);">{{ t('setup.subtitle') }}</p>
+
+        {% if error %}
+        <div class="mb-4 px-3 py-2 rounded-lg text-xs text-left"
+             style="background: rgba(244,63,94,0.08); color: var(--danger);">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('setup.save_password') }}" class="text-left">
+            <div class="mb-4">
+                <label class="block text-sm mb-1.5" style="color: var(--text-muted);">{{ t('setup.step1.password') }}</label>
+                <input type="password" name="password" required minlength="8" autofocus
+                       id="pw-input"
+                       class="setup-input w-full px-4 py-3 rounded-lg text-sm"
+                       oninput="updateStrength(this.value)">
+                <div class="mt-2 h-1 rounded-full overflow-hidden" style="background: var(--bg-elevated);">
+                    <div id="strength-bar" class="h-full rounded-full transition-all duration-300" style="width: 0%; background: var(--danger);"></div>
+                </div>
+                <p id="strength-label" class="text-xs mt-1" style="color: var(--text-subtle);"></p>
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm mb-1.5" style="color: var(--text-muted);">{{ t('setup.step1.confirm') }}</label>
+                <input type="password" name="confirm" required minlength="8"
+                       class="setup-input w-full px-4 py-3 rounded-lg text-sm">
+            </div>
+            <button type="submit" class="setup-btn w-full py-3 rounded-lg text-sm font-semibold cursor-pointer">
+                {{ t('setup.create') }}
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+function updateStrength(pw) {
+    var score = 0;
+    if (pw.length >= 8) score++;
+    if (pw.length >= 12) score++;
+    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    var bar = document.getElementById("strength-bar");
+    var label = document.getElementById("strength-label");
+    var pct = [0, 20, 40, 60, 80, 100][score];
+    var colors = ["var(--danger)", "var(--danger)", "var(--warning)", "var(--warning)", "var(--success)", "var(--success)"];
+    var labels = ["", "Weak", "Fair", "Good", "Strong", "Excellent"];
+    bar.style.width = pct + "%";
+    bar.style.background = colors[score];
+    label.textContent = labels[score];
+    label.style.color = colors[score];
+}
+</script>
+{% endblock %}

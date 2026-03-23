@@ -58,6 +58,8 @@ def login():
     }
     session["user_token"] = token
     session["user_api_url"] = user.get("api_url", "")
+    session.pop("active_partition", None)
+    session.pop("partition_prefix", None)
 
     return redirect(url_for("demo.app_shell"))
 

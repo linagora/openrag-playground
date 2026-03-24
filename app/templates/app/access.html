@@ -1,12 +1,12 @@
 {% for m in members %}
-<div class="flex items-center gap-1.5 px-1 py-0.5" style="color: var(--text-muted); font-size: 0.8125rem;">
-    <span class="truncate flex-1" style="{{ 'opacity:0.4;' if m.role == 'none' }}">{{ m.name }}</span>
+<div class="flex items-center gap-1.5 px-1 py-0.5 text-sm" style="color: var(--text-muted);">
+    <span class="truncate flex-1 {{ 'opacity-40' if m.role == 'none' }}">{{ m.name }}</span>
     <div class="flex items-center gap-1 shrink-0">
         {% for r, icon in [('none','x'), ('viewer','eye'), ('editor','cloud-upload'), ('owner','shield')] %}
         <form hx-post="{{ url_for('chat.set_access', partition=partition) }}"
               hx-target="closest .partition-access"
               hx-swap="innerHTML"
-              style="display:inline;">
+              class="inline">
             <input type="hidden" name="user_id" value="{{ m.user_id }}">
             <input type="hidden" name="old_role" value="{{ m.role }}">
             <input type="hidden" name="role" value="{{ r }}">

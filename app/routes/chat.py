@@ -103,8 +103,8 @@ def partitions():
 
 def _role_badge(is_admin):
     if is_admin:
-        return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px" style="font-size:10px;font-weight:600;background:rgba(199,31,69,0.15);color:var(--accent);">admin</span>'
-    return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px" style="font-size:10px;font-weight:600;background:rgba(34,211,164,0.15);color:var(--success);">user</span>'
+        return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px text-[10px] font-semibold" style="background:rgba(199,31,69,0.15);color:var(--accent);">admin</span>'
+    return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px text-[10px] font-semibold" style="background:rgba(34,211,164,0.15);color:var(--success);">user</span>'
 
 
 def _check_role(api_url, token):

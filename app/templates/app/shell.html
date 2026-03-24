@@ -624,7 +624,7 @@
             </div>
 
             <!-- Prompt history -->
-            <div class="sidebar-section-label" style="margin-top: 0.5rem;">{{ t('app.history') }}</div>
+            <div class="sidebar-section-label mt-2">{{ t('app.history') }}</div>
             <div class="sidebar-history" id="prompt-history">
                 <div class="text-xs text-center py-3" style="color: var(--text-subtle);">{{ t('app.no_history') }}</div>
             </div>
@@ -656,8 +656,8 @@
                             <div class="text-[10px]" style="color: var(--text-muted);">{{ user.title }}</div>
                             {% if user.group_label %}
                             <div class="flex items-center gap-1.5 mt-1">
-                                <span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:4px;background:{{ user.group_color }};color:white;flex-shrink:0;">
-                                    <i data-lucide="{{ user.group_icon }}" style="width:10px;height:10px;"></i>
+                                <span class="inline-flex items-center justify-center w-4 h-4 rounded shrink-0" style="background:{{ user.group_color }};color:white;">
+                                    <i data-lucide="{{ user.group_icon }}" class="w-2.5 h-2.5"></i>
                                 </span>
                                 <span class="text-[10px]" style="color: var(--text-muted);">{{ user.group_label }}</span>
                             </div>
@@ -715,7 +715,7 @@
             <div class="chat-messages" id="chat-messages">
             <div class="flex items-center justify-center flex-1" style="color: var(--text-subtle);">
                 <div class="text-center">
-                    <i data-lucide="message-circle" class="w-10 h-10 mx-auto mb-2" style="opacity: 0.3;" title="{{ t('tooltip.start_conversation') }}"></i>
+                    <i data-lucide="message-circle" class="w-10 h-10 mx-auto mb-2 opacity-30" title="{{ t('tooltip.start_conversation') }}"></i>
                     <p class="text-sm">{{ t('app.empty_chat') }}</p>
                 </div>
             </div>
@@ -724,7 +724,7 @@
 
         <div class="chat-input-bar">
             <!-- Hidden file input -->
-            <input type="file" id="file-upload-input" style="display:none" onchange="uploadFile(this)">
+            <input type="file" id="file-upload-input" class="hidden" onchange="uploadFile(this)">
             <form id="chat-form" onsubmit="sendMessage(event)">
                 <div class="flex gap-2">
                     <button type="button" id="upload-btn" onclick="document.getElementById('file-upload-input').click()"
@@ -733,8 +733,8 @@
                             title="{{ t('tooltip.upload_file') }}">
                         <i data-lucide="cloud-upload" class="w-4 h-4"></i>
                     </button>
-                    <div class="flex-1" style="position: relative;">
-                        <div id="suggestions-dropdown" class="suggestions-dropdown" style="display:none;"></div>
+                    <div class="flex-1 relative">
+                        <div id="suggestions-dropdown" class="suggestions-dropdown hidden"></div>
                         <textarea class="chat-input" id="chat-input" rows="1"
                               placeholder="{{ t('app.placeholder') }}"
                               title="{{ t('tooltip.type_message') }}"
@@ -746,7 +746,7 @@
                     </button>
                 </div>
             </form>
-            <div id="upload-status" style="display:none" class="mt-2 text-xs flex items-center gap-2 px-1">
+            <div id="upload-status" class="hidden mt-2 text-xs flex items-center gap-2 px-1">
                 <span id="upload-status-icon"></span>
                 <span id="upload-status-text"></span>
             </div>
@@ -754,7 +754,7 @@
     </div>
 </div>
 
-<div id="i18n-data" style="display:none"
+<div id="i18n-data" class="hidden"
      data-tooltip-reuse="{{ t('tooltip.reuse_prompt') }}"
      data-tooltip-partition-used="{{ t('tooltip.partition_used') }}"
      data-tooltip-sent-to="{{ t('tooltip.sent_to') }}"
@@ -875,16 +875,16 @@ function handleSuggestions() {
                 .then(function(html) {
                     if (html.trim()) {
                         dropdown.innerHTML = html;
-                        dropdown.style.display = 'block';
+                        dropdown.classList.remove('hidden');
                         suggestionIndex = -1;
                         if (typeof lucide !== 'undefined') lucide.createIcons();
                     } else {
-                        dropdown.style.display = 'none';
+                        dropdown.classList.add('hidden');
                     }
                 });
         }, 150);
     } else {
-        dropdown.style.display = 'none';
+        dropdown.classList.add('hidden');
     }
 }
 
@@ -892,7 +892,7 @@ function selectSuggestion(el) {
     var prompt = el.getAttribute('data-prompt');
     var input = document.getElementById('chat-input');
     input.value = prompt;
-    document.getElementById('suggestions-dropdown').style.display = 'none';
+    document.getElementById('suggestions-dropdown').classList.add('hidden');
     suggestionIndex = -1;
     input.focus();
 }
@@ -905,7 +905,7 @@ function highlightSuggestion(idx) {
 
 function handleInputKeydown(e) {
     var dropdown = document.getElementById('suggestions-dropdown');
-    var visible = dropdown && dropdown.style.display !== 'none';
+    var visible = dropdown && !dropdown.classList.contains('hidden');
     var items = visible ? dropdown.querySelectorAll('.suggestion-item') : [];
 
     if (visible && items.length > 0) {
@@ -928,7 +928,7 @@ function handleInputKeydown(e) {
         }
         if (e.key === 'Escape') {
             e.preventDefault();
-            dropdown.style.display = 'none';
+            dropdown.classList.add('hidden');
             suggestionIndex = -1;
             return;
         }
@@ -948,7 +948,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.chat-input-bar')) {
-            document.getElementById('suggestions-dropdown').style.display = 'none';
+            document.getElementById('suggestions-dropdown').classList.add('hidden');
             suggestionIndex = -1;
         }
     });
@@ -1062,7 +1062,7 @@ function sendMessage(e) {
     var msg = input.value.trim();
     if (!msg) return;
     input.value = '';
-    document.getElementById('suggestions-dropdown').style.display = 'none';
+    document.getElementById('suggestions-dropdown').classList.add('hidden');
     var partition = getPartitionName();
     addToHistory(msg, partition);
 
@@ -1241,7 +1241,7 @@ function selectPartition(wrapper) {
 
 function collapseAllExpandables() {
     document.querySelectorAll('.partition-files, .partition-access, .file-chunks').forEach(function(el) {
-        el.style.display = 'none';
+        el.classList.add('hidden');
     });
     document.querySelectorAll('.file-item.open').forEach(function(el) {
         el.classList.remove('open');
@@ -1251,12 +1251,12 @@ function collapseAllExpandables() {
 function togglePartitionFiles(wrapper, partition) {
     var filesDiv = wrapper.querySelector('.partition-files');
     if (!filesDiv) return;
-    var isOpen = filesDiv.style.display !== 'none';
+    var isOpen = !filesDiv.classList.contains('hidden');
     collapseAllExpandables();
     if (isOpen) {
         return;
     } else {
-        filesDiv.style.display = 'block';
+        filesDiv.classList.remove('hidden');
         if (!filesDiv.dataset.loaded) {
             filesDiv.innerHTML = '<div class="flex justify-center py-2">{% include "partials/spinner.html" %}</div>';
             fetch('/chat/partition-files/' + partition)
@@ -1299,14 +1299,14 @@ function fileDblClick(header) {
 function toggleFileChunks(header, partition, fileId) {
     var fileItem = header.closest('.file-item');
     var chunksDiv = fileItem.querySelector('.file-chunks');
-    var isOpen = chunksDiv.style.display !== 'none';
+    var isOpen = !chunksDiv.classList.contains('hidden');
     var parentFiles = fileItem.closest('.partition-files');
     collapseAllExpandables();
-    if (parentFiles) parentFiles.style.display = 'block';
+    if (parentFiles) parentFiles.classList.remove('hidden');
     if (isOpen) {
         return;
     } else {
-        chunksDiv.style.display = 'block';
+        chunksDiv.classList.remove('hidden');
         fileItem.classList.add('open');
         if (!chunksDiv.dataset.loaded) {
             chunksDiv.innerHTML = '<div class="flex justify-center py-1">{% include "partials/spinner.html" %}</div>';
@@ -1325,12 +1325,12 @@ function togglePartitionAccess(btn, partition) {
     var wrapper = btn.closest('.partition-wrapper');
     var accessDiv = wrapper.querySelector('.partition-access');
     if (!accessDiv) return;
-    var isOpen = accessDiv.style.display !== 'none';
+    var isOpen = !accessDiv.classList.contains('hidden');
     collapseAllExpandables();
     if (isOpen) {
         return;
     } else {
-        accessDiv.style.display = 'block';
+        accessDiv.classList.remove('hidden');
         if (!accessDiv.dataset.loaded) {
             accessDiv.innerHTML = '<div class="flex justify-center py-2">{% include "partials/spinner.html" %}</div>';
             fetch('/chat/partition-access/' + partition)
@@ -1432,7 +1432,7 @@ function uploadFile(input) {
     var text = document.getElementById('upload-status-text');
     var btn = document.getElementById('upload-btn');
 
-    status.style.display = 'flex';
+    status.classList.remove('hidden');
     icon.innerHTML = '{% include "partials/spinner.html" %}';
     text.textContent = i18n.uploadUploading + ' ' + file.name;
     text.style.color = 'var(--text-muted)';
@@ -1452,7 +1452,7 @@ function uploadFile(input) {
                 btn.disabled = false;
                 btn.style.opacity = '';
                 if (typeof lucide !== 'undefined') lucide.createIcons();
-                setTimeout(function() { status.style.display = 'none'; }, 5000);
+                setTimeout(function() { status.classList.add('hidden'); }, 5000);
                 return;
             }
             var taskId = result.data.task_id;
@@ -1471,7 +1471,7 @@ function uploadFile(input) {
             btn.disabled = false;
             btn.style.opacity = '';
             if (typeof lucide !== 'undefined') lucide.createIcons();
-            setTimeout(function() { status.style.display = 'none'; }, 5000);
+            setTimeout(function() { status.classList.add('hidden'); }, 5000);
         });
 }
 
@@ -1492,7 +1492,7 @@ function pollTask(taskId, fileName) {
                 document.getElementById('upload-btn').disabled = false;
                 document.getElementById('upload-btn').style.opacity = '';
                 if (typeof lucide !== 'undefined') lucide.createIcons();
-                setTimeout(function() { document.getElementById('upload-status').style.display = 'none'; }, 5000);
+                setTimeout(function() { document.getElementById('upload-status').classList.add('hidden'); }, 5000);
             } else {
                 setTimeout(function() { pollTask(taskId, fileName); }, 2000);
             }
@@ -1512,7 +1512,7 @@ function showUploadSuccess(fileName) {
     document.getElementById('upload-btn').disabled = false;
     document.getElementById('upload-btn').style.opacity = '';
     if (typeof lucide !== 'undefined') lucide.createIcons();
-    setTimeout(function() { document.getElementById('upload-status').style.display = 'none'; }, 5000);
+    setTimeout(function() { document.getElementById('upload-status').classList.add('hidden'); }, 5000);
 }
 
 function viewSourceFile(partition, fname, staticPath) {

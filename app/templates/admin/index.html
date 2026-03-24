@@ -87,11 +87,6 @@
 
     <!-- Actions -->
     <div class="flex items-center justify-center gap-4 mt-8">
-        <a href="{{ url_for('admin.export_config') }}" class="text-sm transition-colors duration-150 hover:underline" style="color: var(--text-muted);" title="{{ t('admin.export_tooltip') }}">
-            <i data-lucide="download" class="w-3.5 h-3.5 inline" style="vertical-align: -2px;"></i>
-            {{ t('admin.export') }}
-        </a>
-        <span style="color: var(--text-subtle);">&middot;</span>
         <label class="text-sm transition-colors duration-150 hover:underline cursor-pointer" style="color: var(--text-muted);" title="{{ t('admin.import_tooltip') }}">
             <i data-lucide="upload" class="w-3.5 h-3.5 inline" style="vertical-align: -2px;"></i>
             {{ t('admin.import') }}

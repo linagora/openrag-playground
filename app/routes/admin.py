@@ -409,35 +409,6 @@ def remove_prompt(idx):
     return redirect(url_for("admin.admin_index"))
 
 
-@admin_bp.route("/export-config")
-def export_config():
-    """Download config.yaml with decrypted tokens."""
-    import copy
-    import yaml
-
-    config = load_config()
-    password = current_app.config.get("ADMIN_PASSWORD")
-    if not config or not password:
-        return "", 404
-
-    export = copy.deepcopy(config)
-    export.pop("password_hash", None)
-    for u in export.get("demo_users", []):
-        tok = u.get("token", "")
-        if tok.startswith("enc:"):
-            try:
-                u["token"] = decrypt_token(tok, password, u["id"])
-            except Exception:
-                pass
-
-    content = yaml.dump(export, allow_unicode=True, default_flow_style=False, sort_keys=False)
-    from flask import Response
-    return Response(
-        content,
-        mimetype="application/x-yaml",
-        headers={"Content-Disposition": "attachment; filename=decrypted-config.yaml"},
-    )
-
 
 @admin_bp.route("/import-config", methods=["POST"])
 def import_config():

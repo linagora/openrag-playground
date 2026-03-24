@@ -792,6 +792,11 @@
                             style="background: var(--accent); color: white;" title="{{ t('tooltip.send_message') }}">
                         <i data-lucide="send" class="w-4 h-4"></i>
                     </button>
+                    <button type="button" id="stop-btn" class="px-4 rounded-lg cursor-pointer transition-opacity hover:opacity-90 shrink-0"
+                            style="background: var(--accent); color: white; display: none;" title="{{ t('tooltip.stop_streaming') }}"
+                            onclick="stopStreaming()">
+                        <i data-lucide="square" class="w-4 h-4"></i>
+                    </button>
                 </div>
             </form>
             <div id="upload-status" style="display:none" class="mt-2 text-xs flex items-center gap-2 px-1">
@@ -1109,6 +1114,31 @@ function clearChat() {
     updateClearBtn();
 }
 
+var activeStream = null;
+var activeGroup = null;
+var activeMsg = '';
+
+function stopStreaming() {
+    if (activeStream) {
+        activeStream.close();
+        activeStream = null;
+    }
+    if (activeGroup) {
+        activeGroup.remove();
+        activeGroup = null;
+    }
+    var input = document.getElementById('chat-input');
+    if (activeMsg) {
+        input.value = activeMsg;
+        activeMsg = '';
+    }
+    document.getElementById('send-btn').style.display = '';
+    document.getElementById('send-btn').disabled = false;
+    document.getElementById('send-btn').style.opacity = '';
+    document.getElementById('stop-btn').style.display = 'none';
+    updateClearBtn();
+}
+
 function sendMessage(e) {
     e.preventDefault();
     var input = document.getElementById('chat-input');
@@ -1122,7 +1152,9 @@ function sendMessage(e) {
     var messages = document.getElementById('chat-messages');
     var sendBtn = document.getElementById('send-btn');
     sendBtn.disabled = true;
-    sendBtn.style.opacity = '0.4';
+    sendBtn.style.display = 'none';
+    document.getElementById('stop-btn').style.display = '';
+    activeMsg = msg;
 
     var emptyState = messages.querySelector('.flex.items-center.justify-center');
     if (emptyState) emptyState.remove();
@@ -1133,6 +1165,7 @@ function sendMessage(e) {
     var group = document.createElement('div');
     group.className = 'msg-group';
     messages.appendChild(group);
+    activeGroup = group;
 
     var userDiv = document.createElement('div');
     userDiv.className = 'msg msg-user';
@@ -1156,6 +1189,7 @@ function sendMessage(e) {
 
     var encoded = encodeURIComponent(msg);
     var source = new EventSource('/chat/stream?message=' + encoded);
+    activeStream = source;
     var rawText = '';
 
     function quickMd(text) {
@@ -1231,7 +1265,11 @@ function sendMessage(e) {
 
     function enableSend() {
         var btn = document.getElementById('send-btn');
-        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.style.display = ''; }
+        document.getElementById('stop-btn').style.display = 'none';
+        activeStream = null;
+        activeGroup = null;
+        activeMsg = '';
     }
 
     source.addEventListener('done', function() {

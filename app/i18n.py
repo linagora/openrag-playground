@@ -685,6 +685,10 @@ TRANSLATIONS = {
         "en": "Clear history",
         "fr": "Effacer l'historique",
     },
+    "tooltip.stop_streaming": {
+        "en": "Stop",
+        "fr": "Arrêter",
+    },
     "app.save_prompt.global": {
         "en": "For everyone",
         "fr": "Pour tout le monde",

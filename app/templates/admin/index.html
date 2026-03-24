@@ -55,21 +55,21 @@
                 hx-get="{{ url_for('admin.admin_tab', tab='groups') }}"
                 hx-target="#tab-content" hx-swap="innerHTML"
                 onclick="setActiveTab(this)" title="{{ t('tooltip.manage_groups') }}">
-            <i data-lucide="folder" class="w-4 h-4 inline-block mr-1" style="vertical-align:-2px;"></i>
+            <i data-lucide="folder" class="w-4 h-4 inline-block mr-1" style="vertical-align: -2px;"></i>
             {{ t('admin.groups') }}
         </button>
         <button class="tab-btn {{ 'active' if tab == 'users' }}"
                 hx-get="{{ url_for('admin.admin_tab', tab='users') }}"
                 hx-target="#tab-content" hx-swap="innerHTML"
                 onclick="setActiveTab(this)" title="{{ t('tooltip.manage_users') }}">
-            <i data-lucide="users" class="w-4 h-4 inline-block mr-1" style="vertical-align:-2px;"></i>
+            <i data-lucide="users" class="w-4 h-4 inline-block mr-1" style="vertical-align: -2px;"></i>
             {{ t('admin.users') }}
         </button>
         <button class="tab-btn {{ 'active' if tab == 'prompts' }}"
                 hx-get="{{ url_for('admin.admin_tab', tab='prompts') }}"
                 hx-target="#tab-content" hx-swap="innerHTML"
                 onclick="setActiveTab(this)" title="{{ t('tooltip.manage_prompts') }}">
-            <i data-lucide="message-square" class="w-4 h-4 inline-block mr-1" style="vertical-align:-2px;"></i>
+            <i data-lucide="message-square" class="w-4 h-4 inline-block mr-1" style="vertical-align: -2px;"></i>
             {{ t('admin.prompts') }}
         </button>
     </div>
@@ -88,12 +88,12 @@
     <!-- Actions -->
     <div class="flex items-center justify-center gap-4 mt-8">
         <a href="{{ url_for('admin.export_config') }}" class="text-sm transition-colors duration-150 hover:underline" style="color: var(--text-muted);" title="{{ t('admin.export_tooltip') }}">
-            <i data-lucide="download" class="w-3.5 h-3.5 inline" style="vertical-align:-2px;"></i>
+            <i data-lucide="download" class="w-3.5 h-3.5 inline" style="vertical-align: -2px;"></i>
             {{ t('admin.export') }}
         </a>
         <span style="color: var(--text-subtle);">&middot;</span>
         <label class="text-sm transition-colors duration-150 hover:underline cursor-pointer" style="color: var(--text-muted);" title="{{ t('admin.import_tooltip') }}">
-            <i data-lucide="upload" class="w-3.5 h-3.5 inline" style="vertical-align:-2px;"></i>
+            <i data-lucide="upload" class="w-3.5 h-3.5 inline" style="vertical-align: -2px;"></i>
             {{ t('admin.import') }}
             <form action="{{ url_for('admin.import_config') }}" method="post" enctype="multipart/form-data" class="hidden">
                 <input type="file" name="file" accept=".yaml,.yml" onchange="this.form.submit()">

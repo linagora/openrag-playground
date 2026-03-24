@@ -216,8 +216,6 @@ def partition_files(partition):
         if resp.status_code == 200:
             data = resp.json()
             files = data.get("files", [])
-            if files:
-                current_app.logger.info("FILE_KEYS: %s", list(files[0].keys()))
             files = sorted(files, key=lambda f: f.get("created_at", ""), reverse=True)[:10]
             for f in files:
                 fname = f.get("original_filename", f.get("filename", f.get("file_id", "")))
@@ -358,7 +356,6 @@ def partition_access(partition):
             headers={"Authorization": f"Bearer {token}"},
             timeout=10.0,
         )
-        current_app.logger.info("GET /partition/%s/users → %s %s", partition, resp.status_code, resp.text[:500])
         if resp.status_code == 200:
             data = resp.json()
             items = data if isinstance(data, list) else data.get("members", data.get("users", []))
@@ -366,8 +363,8 @@ def partition_access(partition):
                 uid = u.get("user_id", u.get("id", ""))
                 if uid:
                     role_map[uid] = u.get("role", "viewer")
-    except Exception as e:
-        current_app.logger.info("GET /partition/%s/users FAILED: %s", partition, e)
+    except Exception:
+        pass
     # Build unified list from same-group demo users, resolving their OpenRAG user_id
     config = load_yaml_config()
     demo_user = session.get("demo_user", {})
@@ -384,7 +381,6 @@ def partition_access(partition):
                         "name": u.get("name", openrag_uid),
                         "role": role_map.get(openrag_uid, "none"),
                     })
-    current_app.logger.info("PARTITION_ACCESS %s role_map=%s members=%s", partition, role_map, members)
     return render_template("app/access.html", members=members, partition=partition)
 
 
@@ -400,23 +396,19 @@ def set_access(partition):
     if not user_id:
         return "", 400
     headers = {"Authorization": f"Bearer {token}"}
-    resp = None
     try:
         if new_role == "none" and old_role != "none":
-            resp = httpx.delete(f"{api_url}/partition/{partition}/users/{user_id}",
-                                headers=headers, timeout=10.0)
+            httpx.delete(f"{api_url}/partition/{partition}/users/{user_id}",
+                         headers=headers, timeout=10.0)
         elif new_role != "none" and old_role == "none":
-            resp = httpx.post(f"{api_url}/partition/{partition}/users",
-                              headers=headers, data={"user_id": user_id, "role": new_role},
-                              timeout=10.0)
+            httpx.post(f"{api_url}/partition/{partition}/users",
+                       headers=headers, data={"user_id": user_id, "role": new_role},
+                       timeout=10.0)
         elif new_role != "none" and new_role != old_role:
-            resp = httpx.patch(f"{api_url}/partition/{partition}/users/{user_id}",
-                               headers=headers, data={"role": new_role}, timeout=10.0)
+            httpx.patch(f"{api_url}/partition/{partition}/users/{user_id}",
+                        headers=headers, data={"role": new_role}, timeout=10.0)
     except Exception:
         pass
-    if resp is not None:
-        current_app.logger.info("SET_ACCESS %s %s → %s: HTTP %s %s",
-                                partition, user_id, new_role, resp.status_code, resp.text[:200])
     return partition_access(partition)
 
 
@@ -753,10 +745,6 @@ def chat_stream():
                         chunk = json.loads(data)
                     except json.JSONDecodeError:
                         continue
-                    # Log non-standard keys once
-                    extra_keys = set(chunk.keys()) - {"id", "object", "created", "model", "choices", "usage"}
-                    if extra_keys and not sources:
-                        current_app.logger.info("CHUNK_EXTRA_KEYS: %s sample=%s", extra_keys, str(chunk)[:500])
                     choices = chunk.get("choices", [])
                     if not choices:
                         continue
@@ -783,9 +771,6 @@ def chat_stream():
         except Exception as e:
             current_app.logger.error("Stream error: %s", e)
             yield _sse_event("token", f"<div class='mt-2' style='color:var(--danger)'>{t('chat.error.generic')}</div>")
-
-        unique_files = set(s.get("file_url", "") for s in sources)
-        current_app.logger.info("STREAM_SOURCES count=%d unique_files=%d files=%s", len(sources), len(unique_files), unique_files)
 
         # Send rendered markdown to replace raw text
         if full_text:

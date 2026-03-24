@@ -1,18 +1,39 @@
 {% if sources %}
+{% set seen_files = [] %}
 <div class="mt-2">
     <div class="text-xs font-semibold mb-1.5" style="color: var(--text-subtle);">
         <i data-lucide="file-text" class="w-3 h-3 inline-block" style="vertical-align: -1px;"></i>
-        Sources ({{ sources | length }})
+        Sources
     </div>
     <div class="flex flex-wrap gap-1.5">
         {% for s in sources %}
-        <div class="source-item">
-            <i data-lucide="file" class="w-3 h-3 shrink-0" style="color: var(--accent);"></i>
-            <span class="truncate max-w-[180px]">{{ s.get('filename', s.get('name', 'Document')) }}</span>
+        {% set file_url = s.get('file_url', '') %}
+        {% set chunk_url = s.get('chunk_url', '') %}
+        {% set partition = s.get('partition', '') %}
+        {% set fname = file_url.split('/')[-1].split('?')[0] if file_url else s.get('filename', 'Document') %}
+        {% set display = fname.split('_', 2)[-1] if fname.count('_') >= 2 else fname %}
+        {% set static_path = '/static/' + fname if fname else '' %}
+        {% set file_key = file_url or fname %}
+        {% if file_key not in seen_files %}
+        {% if seen_files.append(file_key) %}{% endif %}
+        <div class="source-item" title="{{ display }}">
+            <span class="truncate max-w-[180px] cursor-pointer hover:underline"
+                  onclick="viewSourceFile('{{ partition }}','{{ fname | e }}','{{ static_path | e }}')">
+                <i data-lucide="file" class="w-3 h-3 inline shrink-0" style="color: var(--accent); vertical-align: -1px;"></i>
+                {{ display }}
+            </span>
+            {% if chunk_url %}
+            <button class="p-0 border-0 bg-transparent cursor-pointer" style="color: var(--text-subtle);"
+                    title="{{ t('tooltip.view_chunk') if t is defined else 'View chunk' }}"
+                    onclick="viewSourceChunk('{{ chunk_url | e }}')">
+                <i data-lucide="puzzle" class="w-3 h-3"></i>
+            </button>
+            {% endif %}
             {% if s.get('score') is not none %}
-            <span class="text-[10px] ml-1" style="color: var(--text-subtle);">{{ (s.score * 100) | int }}%</span>
+            <span class="text-[10px]" style="color: var(--text-subtle);">{{ (s.score * 100) | int }}%</span>
             {% endif %}
         </div>
+        {% endif %}
         {% endfor %}
     </div>
 </div>

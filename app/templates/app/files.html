@@ -2,7 +2,7 @@
 {% set fid = f.get('file_id', '') %}
 {% set display = f.get('original_filename', f.get('filename', fid)) %}
 <div class="file-item">
-    <div class="file-header" data-file-id="{{ fid }}" data-partition="{{ partition }}" data-media="{{ f.media_type }}"
+    <div class="file-header" data-file-id="{{ fid }}" data-partition="{{ partition }}" data-media="{{ f.media_type }}" data-source="{{ f.get('source', '') }}"
          onclick="fileClick(this)" ondblclick="event.stopPropagation();fileDblClick(this)">
         <i data-lucide="{{ f.icon }}" class="w-3 h-3 shrink-0" style="color: var(--text-subtle);"></i>
         <span class="truncate flex-1">{{ display }}</span>

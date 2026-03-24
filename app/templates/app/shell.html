@@ -555,6 +555,21 @@
         vertical-align: middle;
         margin-left: 0.25rem;
     }
+    .inline-dots {
+        display: inline;
+        vertical-align: middle;
+        margin-left: 0.25rem;
+        color: var(--text-muted);
+    }
+    .inline-dots circle {
+        animation: idots .8s linear infinite;
+    }
+    .inline-dots circle:nth-child(2) { animation-delay: -.65s; }
+    .inline-dots circle:nth-child(3) { animation-delay: -.5s; }
+    @keyframes idots {
+        93.75%, 100% { r: 3px; }
+        46.875% { r: .2px; }
+    }
 
     /* Suggestions dropdown */
     .suggestions-dropdown {
@@ -1083,13 +1098,66 @@ function sendMessage(e) {
 
     var encoded = encodeURIComponent(msg);
     var source = new EventSource('/chat/stream?message=' + encoded);
+    var rawText = '';
+
+    function quickMd(text) {
+        var esc = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        // Fenced code blocks
+        esc = esc.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+        // Inline code
+        esc = esc.replace(/`([^`]+)`/g, '<code>$1</code>');
+        // Bold
+        esc = esc.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        // Italic
+        esc = esc.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        // Links
+        esc = esc.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:var(--accent)">$1</a>');
+        // Lines
+        var lines = esc.split('\n');
+        var html = '';
+        var inList = false;
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            if (/^[-*]\s/.test(line)) {
+                if (!inList) { html += '<ul>'; inList = true; }
+                html += '<li>' + line.replace(/^[-*]\s/, '') + '</li>';
+            } else {
+                if (inList) { html += '</ul>'; inList = false; }
+                if (/^#{1,3}\s/.test(line)) {
+                    var lvl = line.match(/^(#{1,3})/)[1].length;
+                    html += '<h' + (lvl + 1) + '>' + line.replace(/^#{1,3}\s/, '') + '</h' + (lvl + 1) + '>';
+                } else if (line === '') {
+                    html += '<br>';
+                } else {
+                    html += '<p>' + line + '</p>';
+                }
+            }
+        }
+        if (inList) html += '</ul>';
+        return html;
+    }
 
     source.addEventListener('token', function(e) {
         var spinner = document.getElementById('stream-spinner');
         if (spinner) spinner.remove();
+        // Extract raw text from the span
+        var tmp = document.createElement('span');
+        tmp.innerHTML = e.data;
+        rawText += tmp.textContent || '';
         var bubble = document.getElementById('streaming-bubble');
         if (bubble) {
-            bubble.insertAdjacentHTML('beforeend', e.data);
+            var label = bubble.querySelector('.msg-partition');
+            var dots = '<svg class="inline-dots" width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="4" cy="12" r="3" fill="currentColor"/><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="20" cy="12" r="3" fill="currentColor"/></svg>';
+            bubble.innerHTML = (label ? label.outerHTML : '') + '<div class="md-content">' + quickMd(rawText) + dots + '</div>';
+            messages.scrollTop = messages.scrollHeight;
+        }
+    });
+
+    source.addEventListener('rendered', function(e) {
+        var bubble = document.getElementById('streaming-bubble');
+        if (bubble) {
+            var label = bubble.querySelector('.msg-partition');
+            bubble.innerHTML = (label ? label.outerHTML : '') + '<div class="md-content">' + e.data + '</div>';
             messages.scrollTop = messages.scrollHeight;
         }
     });
@@ -1215,7 +1283,8 @@ function fileClick(header) {
         var partition = header.dataset.partition;
         var fileId = header.dataset.fileId;
         var mediaType = header.dataset.media;
-        viewFile(partition, fileId, mediaType);
+        var source = header.dataset.source || '';
+        viewFile(partition, fileId, mediaType, source);
     }, 250);
 }
 
@@ -1293,28 +1362,31 @@ function deleteFile(btn, partition, fileId) {
     });
 }
 
-function viewFile(partition, fileId, mediaType) {
+function viewFile(partition, fileId, mediaType, source) {
     var messages = document.getElementById('chat-messages');
     var emptyState = messages.querySelector('.flex.items-center.justify-center');
     if (emptyState) emptyState.remove();
 
     var url = '/chat/file-proxy/' + partition + '/' + encodeURIComponent(fileId);
+    if (source) url += '?source=' + encodeURIComponent(source);
     var content = '';
 
     if (mediaType === 'audio') {
-        content = '<audio controls class="w-full" style="max-width:500px;"><source src="' + url + '"></audio>';
+        content = '<audio controls class="w-full"><source src="' + url + '"></audio>';
     } else if (mediaType === 'video') {
-        content = '<video controls class="w-full rounded-lg" style="max-width:600px;"><source src="' + url + '"></video>';
+        content = '<video controls class="w-full rounded-lg"><source src="' + url + '"></video>';
     } else if (mediaType === 'pdf') {
-        content = '<embed src="' + url + '" type="application/pdf" class="w-full rounded-lg" style="height:500px;">';
+        content = '<embed src="' + url + '" type="application/pdf" class="w-full rounded-lg" style="height:600px;">';
     } else if (mediaType === 'image') {
-        content = '<img src="' + url + '" class="rounded-lg" style="max-width:500px;max-height:400px;">';
+        content = '<img src="' + url + '" class="w-full rounded-lg">';
     } else {
         content = '<a href="' + url + '" target="_blank" rel="noopener" style="color:var(--accent);">' + fileId + '</a>';
     }
 
     var div = document.createElement('div');
     div.className = 'msg msg-assistant';
+    div.style.width = '500px';
+    div.style.maxWidth = '95%';
     div.innerHTML = '<div class="text-xs font-semibold mb-2" style="color:var(--text-muted);">' +
         '<i data-lucide="file" class="w-3 h-3 inline-block" style="vertical-align:-1px;"></i> ' + fileId +
         '</div>' + content;
@@ -1441,6 +1513,38 @@ function showUploadSuccess(fileName) {
     document.getElementById('upload-btn').style.opacity = '';
     if (typeof lucide !== 'undefined') lucide.createIcons();
     setTimeout(function() { document.getElementById('upload-status').style.display = 'none'; }, 5000);
+}
+
+function viewSourceFile(partition, fname, staticPath) {
+    var ext = fname.split('.').pop().toLowerCase();
+    var mediaType = 'text';
+    if (['pdf'].indexOf(ext) >= 0) mediaType = 'pdf';
+    else if (['jpg','jpeg','png','gif','webp','svg','bmp'].indexOf(ext) >= 0) mediaType = 'image';
+    else if (['mp3','wav','ogg','flac','m4a','aac'].indexOf(ext) >= 0) mediaType = 'audio';
+    else if (['mp4','webm','mov','avi','mkv'].indexOf(ext) >= 0) mediaType = 'video';
+    viewFile(partition, fname, mediaType, staticPath);
+}
+
+function viewSourceChunk(chunkUrl) {
+    var messages = document.getElementById('chat-messages');
+    var emptyState = messages.querySelector('.flex.items-center.justify-center');
+    if (emptyState) emptyState.remove();
+
+    var div = document.createElement('div');
+    div.className = 'msg msg-assistant';
+    div.innerHTML = '<div class="flex justify-center py-2">{% include "partials/spinner.html" %}</div>';
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+
+    fetch('/chat/source-chunk?url=' + encodeURIComponent(chunkUrl))
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+            div.innerHTML = '<div class="text-xs font-semibold mb-2" style="color:var(--text-muted);">' +
+                '<i data-lucide="puzzle" class="w-3 h-3 inline-block" style="vertical-align:-1px;"></i> Chunk' +
+                '</div><div class="md-content">' + html + '</div>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            messages.scrollTop = messages.scrollHeight;
+        });
 }
 </script>
 {% endblock %}

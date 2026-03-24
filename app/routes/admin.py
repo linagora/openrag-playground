@@ -9,7 +9,7 @@ from flask import (
     Blueprint, render_template, request, redirect, url_for, current_app, jsonify,
 )
 
-from app.crypto import encrypt_token
+from app.crypto import encrypt_token, decrypt_token
 from app.yaml_store import load_config, save_config
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -406,4 +406,70 @@ def remove_prompt(idx):
                                prompts=config.get("demo_prompts", []),
                                groups=_sorted_groups(config),
                                users=config.get("demo_users", []))
+    return redirect(url_for("admin.admin_index"))
+
+
+@admin_bp.route("/export-config")
+def export_config():
+    """Download config.yaml with decrypted tokens."""
+    import copy
+    import yaml
+
+    config = load_config()
+    password = current_app.config.get("ADMIN_PASSWORD")
+    if not config or not password:
+        return "", 404
+
+    export = copy.deepcopy(config)
+    export.pop("password_hash", None)
+    for u in export.get("demo_users", []):
+        tok = u.get("token", "")
+        if tok.startswith("enc:"):
+            try:
+                u["token"] = decrypt_token(tok, password, u["id"])
+            except Exception:
+                pass
+
+    content = yaml.dump(export, allow_unicode=True, default_flow_style=False, sort_keys=False)
+    from flask import Response
+    return Response(
+        content,
+        mimetype="application/x-yaml",
+        headers={"Content-Disposition": "attachment; filename=decrypted-config.yaml"},
+    )
+
+
+@admin_bp.route("/import-config", methods=["POST"])
+def import_config():
+    """Import a config.yaml file, encrypting any plaintext tokens."""
+    import yaml
+
+    password = current_app.config.get("ADMIN_PASSWORD")
+    if not password:
+        return redirect(url_for("admin.admin_index"))
+
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return redirect(url_for("admin.admin_index"))
+
+    try:
+        data = yaml.safe_load(file.stream)
+    except Exception:
+        return redirect(url_for("admin.admin_index"))
+
+    if not isinstance(data, dict):
+        return redirect(url_for("admin.admin_index"))
+
+    # Encrypt any plaintext tokens
+    for u in data.get("demo_users", []):
+        tok = u.get("token", "")
+        if tok and not tok.startswith("enc:"):
+            u["token"] = encrypt_token(tok, password, u["id"])
+
+    # Keep existing password_hash
+    existing = load_config()
+    if existing and "password_hash" in existing:
+        data["password_hash"] = existing["password_hash"]
+
+    save_config(data)
     return redirect(url_for("admin.admin_index"))

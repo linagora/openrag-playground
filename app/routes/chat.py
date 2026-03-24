@@ -216,6 +216,8 @@ def partition_files(partition):
         if resp.status_code == 200:
             data = resp.json()
             files = data.get("files", [])
+            if files:
+                current_app.logger.info("FILE_KEYS: %s", list(files[0].keys()))
             files = sorted(files, key=lambda f: f.get("created_at", ""), reverse=True)[:10]
             for f in files:
                 fname = f.get("original_filename", f.get("filename", f.get("file_id", "")))
@@ -296,26 +298,30 @@ def delete_file(partition, file_id):
 
 @chat_bp.route("/file-proxy/<partition>/<path:file_id>")
 def file_proxy(partition, file_id):
-    """Proxy a file from the OpenRAG server for display in browser."""
+    """Proxy a file from the OpenRAG server via /static/ endpoint."""
     token, api_url = _get_credentials()
     if not token:
         return "", 401
-    headers = {"Authorization": f"Bearer {token}"}
+    # Build static URL from source field: replace /app/data/ with /static/
+    source = request.args.get("source", "")
+    if source:
+        static_path = source.replace("/app/data/", "/static/", 1)
+    else:
+        static_path = f"/static/{file_id}"
     try:
-        # Try multiple download endpoints
-        for url in [
-            f"{api_url}/partition/{partition}/file/{file_id}/download",
-            f"{api_url}/indexer/partition/{partition}/file/{file_id}/download",
-            f"{api_url}/partition/{partition}/file/{file_id}/source",
-        ]:
-            resp = httpx.get(url, headers=headers, timeout=30.0)
-            if resp.status_code == 200 and len(resp.content) > 0:
-                from flask import make_response
-                r = make_response(resp.content)
-                ct = resp.headers.get("content-type", "application/octet-stream")
-                r.headers["Content-Type"] = ct
-                r.headers["Content-Disposition"] = f'inline; filename="{file_id}"'
-                return r
+        resp = httpx.get(
+            f"{api_url}{static_path}",
+            params={"token": token},
+            timeout=30.0,
+            follow_redirects=True,
+        )
+        if resp.status_code == 200 and len(resp.content) > 0:
+            from flask import make_response
+            r = make_response(resp.content)
+            ct = resp.headers.get("content-type", "application/octet-stream")
+            r.headers["Content-Type"] = ct
+            r.headers["Content-Disposition"] = f'inline; filename="{file_id}"'
+            return r
     except Exception:
         pass
     return "", 404
@@ -460,6 +466,39 @@ def upload_status(task_id):
         return jsonify({"status": "error"}), resp.status_code
     except Exception:
         return jsonify({"status": "error"}), 500
+
+
+@chat_bp.route("/source-chunk")
+def source_chunk():
+    """Fetch a chunk by its extract URL and return rendered markdown."""
+    import markdown as md
+
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    chunk_url = request.args.get("url", "")
+    if not chunk_url:
+        return "", 400
+    # Normalize http→https if needed
+    if api_url.startswith("https://") and chunk_url.startswith("http://"):
+        chunk_url = "https://" + chunk_url[7:]
+    try:
+        resp = httpx.get(
+            chunk_url,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10.0,
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            text = data.get("page_content", "")
+            if text.startswith("[CONTEXT] "):
+                text = text[10:]
+            elif text.startswith("[CONTEXT]"):
+                text = text[9:]
+            return md.markdown(text, extensions=["tables", "fenced_code"])
+    except Exception:
+        pass
+    return '<span style="color:var(--text-subtle);">—</span>'
 
 
 def _normalize(text):
@@ -681,7 +720,10 @@ def chat_stream():
     partition = session.get("active_partition", "openrag-all")
 
     def generate():
+        import markdown as md
+
         sources = []
+        full_text = []
         url = f"{api_url}/v1/chat/completions"
         try:
             with httpx.stream(
@@ -693,7 +735,7 @@ def chat_stream():
                     "messages": [{"role": "user", "content": message}],
                     "stream": True,
                 },
-                timeout=60.0,
+                timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0),
             ) as response:
                 if response.status_code != 200:
                     body = response.read().decode()
@@ -711,24 +753,44 @@ def chat_stream():
                         chunk = json.loads(data)
                     except json.JSONDecodeError:
                         continue
+                    # Log non-standard keys once
+                    extra_keys = set(chunk.keys()) - {"id", "object", "created", "model", "choices", "usage"}
+                    if extra_keys and not sources:
+                        current_app.logger.info("CHUNK_EXTRA_KEYS: %s sample=%s", extra_keys, str(chunk)[:500])
                     choices = chunk.get("choices", [])
                     if not choices:
                         continue
                     delta = choices[0].get("delta", {})
                     token_text = delta.get("content", "")
-                    # Capture sources
-                    extra = chunk.get("extra", {})
-                    if "sources" in extra:
-                        sources.extend(extra["sources"])
+                    # Capture sources from extra (may be a JSON string or dict)
+                    if not sources:
+                        extra = chunk.get("extra")
+                        if isinstance(extra, str):
+                            try:
+                                extra = json.loads(extra)
+                            except (json.JSONDecodeError, ValueError):
+                                extra = None
+                        if isinstance(extra, dict) and isinstance(extra.get("sources"), list):
+                            sources = extra["sources"]
                     if token_text:
+                        full_text.append(token_text)
                         html = f"<span>{token_text}</span>"
                         yield _sse_event("token", html)
         except httpx.ConnectError:
-            yield _sse_event("token", f"<span style='color:var(--danger)'>{t('chat.error.unavailable')}</span>")
+            yield _sse_event("token", f"<div class='mt-2' style='color:var(--danger)'>{t('chat.error.unavailable')}</div>")
         except httpx.TimeoutException:
-            yield _sse_event("token", f"<span style='color:var(--danger)'>{t('chat.error.timeout')}</span>")
+            yield _sse_event("token", f"<div class='mt-2' style='color:var(--danger)'>{t('chat.error.timeout')}</div>")
         except Exception as e:
-            yield _sse_event("token", f"<span style='color:var(--danger)'>{t('chat.error.generic')}</span>")
+            current_app.logger.error("Stream error: %s", e)
+            yield _sse_event("token", f"<div class='mt-2' style='color:var(--danger)'>{t('chat.error.generic')}</div>")
+
+        unique_files = set(s.get("file_url", "") for s in sources)
+        current_app.logger.info("STREAM_SOURCES count=%d unique_files=%d files=%s", len(sources), len(unique_files), unique_files)
+
+        # Send rendered markdown to replace raw text
+        if full_text:
+            rendered = md.markdown("".join(full_text), extensions=["tables", "fenced_code"])
+            yield _sse_event("rendered", rendered)
 
         # Send sources after stream ends
         if sources:

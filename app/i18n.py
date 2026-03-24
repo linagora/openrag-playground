@@ -235,6 +235,22 @@ TRANSLATIONS = {
         "en": "Back to application",
         "fr": "Retour à l'application",
     },
+    "admin.export": {
+        "en": "Export config",
+        "fr": "Exporter la config",
+    },
+    "admin.export_tooltip": {
+        "en": "Download config.yaml with decrypted tokens",
+        "fr": "Télécharger config.yaml avec les tokens en clair",
+    },
+    "admin.import": {
+        "en": "Import config",
+        "fr": "Importer une config",
+    },
+    "admin.import_tooltip": {
+        "en": "Upload a config.yaml file (tokens will be encrypted)",
+        "fr": "Importer un fichier config.yaml (les tokens seront chiffrés)",
+    },
     "admin.save": {
         "en": "Save",
         "fr": "Enregistrer",
@@ -472,6 +488,10 @@ TRANSLATIONS = {
     "tooltip.view_file": {
         "en": "View file",
         "fr": "Voir le fichier",
+    },
+    "tooltip.view_chunk": {
+        "en": "View chunk",
+        "fr": "Voir le fragment",
     },
     "tooltip.manage_access": {
         "en": "Manage access",

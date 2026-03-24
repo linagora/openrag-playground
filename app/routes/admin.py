@@ -431,16 +431,18 @@ def import_config():
     if not isinstance(data, dict):
         return redirect(url_for("admin.admin_index"))
 
-    # Encrypt any plaintext tokens
-    for u in data.get("demo_users", []):
-        tok = u.get("token", "")
-        if tok and not tok.startswith("enc:"):
-            u["token"] = encrypt_token(tok, password, u["id"])
+    # Merge into existing config — only overwrite keys present in import
+    existing = load_config() or {}
+    if "groups" in data:
+        existing["groups"] = data["groups"]
+    if "demo_users" in data:
+        for u in data["demo_users"]:
+            tok = u.get("token", "")
+            if tok and not tok.startswith("enc:"):
+                u["token"] = encrypt_token(tok, password, u["id"])
+        existing["demo_users"] = data["demo_users"]
+    if "demo_prompts" in data:
+        existing["demo_prompts"] = data["demo_prompts"]
 
-    # Keep existing password_hash
-    existing = load_config()
-    if existing and "password_hash" in existing:
-        data["password_hash"] = existing["password_hash"]
-
-    save_config(data)
+    save_config(existing)
     return redirect(url_for("admin.admin_index"))

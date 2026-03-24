@@ -549,7 +549,6 @@ def suggestions():
         elif scope.startswith("group:") and scope.split(":", 1)[1] != user_group:
             continue
         elif scope.startswith("partition:"):
-            # Match partition name with or without prefix
             pname = scope.split(":", 1)[1]
             if pname != active_partition and pname != active_partition.replace(prefix, "", 1):
                 continue

@@ -235,6 +235,14 @@ TRANSLATIONS = {
         "en": "Back to application",
         "fr": "Retour à l'application",
     },
+    "admin.logout": {
+        "en": "Logout",
+        "fr": "Déconnexion",
+    },
+    "admin.logout_tooltip": {
+        "en": "Disconnect from master session",
+        "fr": "Se déconnecter de la session maître",
+    },
     "admin.export": {
         "en": "Export config",
         "fr": "Exporter la config",

@@ -474,6 +474,12 @@
     .chat-input::placeholder { color: var(--text-subtle); }
 
     /* Messages */
+    .msg-group {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
     .msg {
         max-width: 75%;
         padding: 0.75rem 1rem;
@@ -482,6 +488,22 @@
         line-height: 1.6;
         position: relative;
     }
+    .msg-dismiss {
+        position: absolute;
+        top: 0.375rem;
+        right: 0.5rem;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text-subtle);
+        padding: 0;
+        line-height: 1;
+        transition: color 150ms ease;
+    }
+    .msg-dismiss:hover { color: var(--accent); }
+    .msg-user .msg-dismiss { color: rgba(255,255,255,0.6); }
+    .msg-user .msg-dismiss:hover { color: white; }
+
     .msg-partition {
         position: absolute;
         top: -0.5rem;
@@ -504,7 +526,7 @@
         color: rgba(255,255,255,0.7);
     }
     .msg-assistant .msg-partition {
-        background: var(--bg-base);
+        background: white;
     }
     .msg-user {
         align-self: flex-end;
@@ -1090,21 +1112,26 @@ function sendMessage(e) {
     var i18n = document.getElementById('i18n-data').dataset;
     var partitionLabel = '<span class="msg-partition" title="' + i18n.tooltipSentTo + ': ' + partition + '">' + partition + '</span>';
 
+    var group = document.createElement('div');
+    group.className = 'msg-group';
+    messages.appendChild(group);
+
     var userDiv = document.createElement('div');
     userDiv.className = 'msg msg-user';
     userDiv.innerHTML = partitionLabel + '<span>' + msg.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
-    messages.appendChild(userDiv);
+    group.appendChild(userDiv);
+    addDismiss(userDiv);
 
     var assistantDiv = document.createElement('div');
     assistantDiv.className = 'msg msg-assistant';
     assistantDiv.id = 'streaming-bubble';
     assistantDiv.innerHTML = partitionLabel + '<span class="streaming-spinner" id="stream-spinner">{% include "partials/spinner.html" %}</span>';
-    messages.appendChild(assistantDiv);
+    group.appendChild(assistantDiv);
 
     var sourcesDiv = document.createElement('div');
     sourcesDiv.className = 'sources-container';
     sourcesDiv.id = 'sources-container';
-    messages.appendChild(sourcesDiv);
+    group.appendChild(sourcesDiv);
     updateClearBtn();
 
     messages.scrollTop = messages.scrollHeight;
@@ -1195,7 +1222,10 @@ function sendMessage(e) {
         var spinner = document.getElementById('stream-spinner');
         if (spinner) spinner.remove();
         var bubble = document.getElementById('streaming-bubble');
-        if (bubble) bubble.removeAttribute('id');
+        if (bubble) {
+            addDismiss(bubble);
+            bubble.removeAttribute('id');
+        }
         var container = document.getElementById('sources-container');
         if (container) container.removeAttribute('id');
     });
@@ -1375,6 +1405,26 @@ function deleteFile(btn, partition, fileId) {
     });
 }
 
+function addDismiss(el) {
+    var btn = document.createElement('button');
+    btn.className = 'msg-dismiss';
+    btn.innerHTML = '<i data-lucide="x" class="w-3.5 h-3.5"></i>';
+    btn.onclick = function(e) {
+        e.stopPropagation();
+        var group = el.closest('.msg-group');
+        if (group) {
+            group.remove();
+        } else {
+            var parent = el.parentElement;
+            el.remove();
+            if (parent && parent.classList.contains('inline-row') && !parent.children.length) parent.remove();
+        }
+        updateClearBtn();
+    };
+    el.appendChild(btn);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 function getOrCreateInlineRow(messages) {
     var last = messages.lastElementChild;
     if (last && last.classList.contains('inline-row')) return last;
@@ -1412,6 +1462,7 @@ function viewFile(partition, fileId, mediaType, source) {
         '<i data-lucide="file" class="w-3 h-3 inline-block" style="vertical-align:-1px;"></i> ' + fileId +
         '</div>' + content;
     row.appendChild(div);
+    addDismiss(div);
     messages.scrollTop = messages.scrollHeight;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -1437,7 +1488,7 @@ function viewChunk(el) {
             div.innerHTML = '<div class="text-xs font-semibold mb-2" style="color:var(--text-muted);">' +
                 '<i data-lucide="text" class="w-3 h-3 inline-block" style="vertical-align:-1px;"></i> Chunk' +
                 '</div>' + html;
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            addDismiss(div);
             messages.scrollTop = messages.scrollHeight;
         });
 }
@@ -1565,6 +1616,7 @@ function viewSourceChunk(chunkUrl) {
             div.innerHTML = '<div class="text-xs font-semibold mb-2" style="color:var(--text-muted);">' +
                 '<i data-lucide="puzzle" class="w-3 h-3 inline-block" style="vertical-align:-1px;"></i> Chunk' +
                 '</div><div class="md-content">' + html + '</div>';
+            addDismiss(div);
             if (typeof lucide !== 'undefined') lucide.createIcons();
             messages.scrollTop = messages.scrollHeight;
         });

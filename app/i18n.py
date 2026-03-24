@@ -493,6 +493,10 @@ TRANSLATIONS = {
         "en": "View chunk",
         "fr": "Voir le fragment",
     },
+    "tooltip.open_new_tab": {
+        "en": "Open in new tab",
+        "fr": "Ouvrir dans un nouvel onglet",
+    },
     "tooltip.manage_access": {
         "en": "Manage access",
         "fr": "Gérer les accès",

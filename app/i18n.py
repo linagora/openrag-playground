@@ -681,6 +681,10 @@ TRANSLATIONS = {
         "en": "Save as demo prompt",
         "fr": "Enregistrer comme prompt de démo",
     },
+    "tooltip.clear_history": {
+        "en": "Clear history",
+        "fr": "Effacer l'historique",
+    },
     "app.save_prompt.global": {
         "en": "For everyone",
         "fr": "Pour tout le monde",

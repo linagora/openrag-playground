@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Route registration."""
 
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request, session
 
 from app.routes.admin import admin_bp
 from app.routes.auth import auth_bp
@@ -38,6 +38,8 @@ def register_routes(app: Flask):
         def sort_key(u):
             g = group_map.get(u.get("group", ""), {})
             return (g.get("label", "zzz").lower(), u.get("name", "").lower())
+        hidden = set(session.get("hidden_users", []))
+        users = [u for u in users if u.get("id") not in hidden]
         users_sorted = sorted(users, key=sort_key)
 
         # Group users by group id (ordered)
@@ -56,3 +58,13 @@ def register_routes(app: Flask):
         return render_template("login.html",
                                grouped_users=grouped_users,
                                groups=groups)
+
+    @app.route("/hide-user", methods=["POST"])
+    def hide_user():
+        user_id = request.form.get("user_id", "")
+        if user_id:
+            hidden = session.get("hidden_users", [])
+            if user_id not in hidden:
+                hidden.append(user_id)
+                session["hidden_users"] = hidden
+        return "", 204

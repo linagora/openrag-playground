@@ -7,7 +7,7 @@
 <style>
     .persona-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 0.75rem;
     }
     .persona-card {
@@ -91,7 +91,7 @@
 
 {% block content %}
 <div class="flex items-center justify-center" style="min-height: calc(100vh - 3rem);">
-    <div class="w-full max-w-3xl px-6">
+    <div class="w-full max-w-5xl px-6">
         <!-- Header -->
         <div class="text-center mb-8">
             <img src="{{ url_for('static', filename='images/Open-RAG_ico.svg') }}"
@@ -115,7 +115,8 @@
                  data-user-group="{{ section.group.label if section.group else '' }}"
                  data-user-group-color="{{ section.group.color if section.group else '' }}"
                  data-user-group-icon="{{ section.group.icon if section.group else '' }}"
-                 onclick="openLogin(this)"
+                 onclick="cardClick(this)"
+                 ondblclick="cardDblClick(this)"
                  title="{{ t('tooltip.sign_in_as') }} {{ u.name }}">
                 {% if section.group %}
                 <div class="persona-group-label" style="color: {{ section.group.color }}; border-color: {{ section.group.color }}30;" title="{{ t('tooltip.group') }}: {{ section.group.label }}">
@@ -165,6 +166,19 @@
 </div>
 
 <script>
+var cardClickTimer = null;
+function cardClick(card) {
+    if (cardClickTimer) return;
+    cardClickTimer = setTimeout(function() {
+        cardClickTimer = null;
+        openLogin(card);
+    }, 250);
+}
+function cardDblClick(card) {
+    clearTimeout(cardClickTimer);
+    cardClickTimer = null;
+    hideUser(card);
+}
 function openLogin(card) {
     var svg = card.querySelector('.user-avatar svg');
     document.getElementById('modal-avatar').innerHTML = svg ? svg.outerHTML : '';
@@ -190,6 +204,11 @@ function openLogin(card) {
 }
 function closeLogin() {
     document.getElementById('login-overlay').style.display = 'none';
+}
+function hideUser(card) {
+    var uid = card.getAttribute('data-user-id');
+    card.style.display = 'none';
+    fetch('/hide-user', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'user_id=' + encodeURIComponent(uid) });
 }
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeLogin();

@@ -668,7 +668,11 @@
             </div>
 
             <!-- Prompt history -->
-            <div class="sidebar-section-label" style="margin-top: 0.5rem;">{{ t('app.history') }}</div>
+            <div class="sidebar-section-label" style="margin-top: 0.5rem;">{{ t('app.history') }}
+                <button onclick="clearHistory()" class="ml-auto p-0 border-0 bg-transparent cursor-pointer" style="color: var(--text-subtle); float: right;" title="{{ t('tooltip.clear_history') }}">
+                    <i data-lucide="trash-2" class="w-3 h-3"></i>
+                </button>
+            </div>
             <div class="sidebar-history" id="prompt-history">
                 <div class="text-xs text-center py-3" style="color: var(--text-subtle);">{{ t('app.no_history') }}</div>
             </div>
@@ -894,6 +898,11 @@ function refreshPartitionStats() {
 
 // Prompt history
 var promptHistory = [];
+
+function clearHistory() {
+    promptHistory = [];
+    renderHistory();
+}
 
 function addToHistory(msg, partition) {
     promptHistory.unshift({ msg: msg, partition: partition });

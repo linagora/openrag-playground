@@ -152,8 +152,10 @@ def _file_media_type(filename):
 
 @chat_bp.route("/partition-stats")
 def partition_stats():
-    """Return doc + chunk counts for the active partition as an HTML fragment."""
+    """Return doc + chunk counts, type pie chart, and growth sparkline."""
+    from collections import Counter
     from concurrent.futures import ThreadPoolExecutor
+    from datetime import datetime
 
     token, api_url = _get_credentials()
     if not token:
@@ -161,12 +163,12 @@ def partition_stats():
     partition = session.get("active_partition", "openrag-all").replace("openrag-", "")
     headers = {"Authorization": f"Bearer {token}"}
 
-    def _count_files():
+    def _fetch_files():
         try:
             r = httpx.get(f"{api_url}/partition/{partition}", headers=headers, timeout=10.0)
-            return len(r.json().get("files", [])) if r.status_code == 200 else 0
+            return r.json().get("files", []) if r.status_code == 200 else []
         except Exception:
-            return 0
+            return []
 
     def _count_chunks():
         try:
@@ -184,21 +186,162 @@ def partition_stats():
             return 0
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        f_files = pool.submit(_count_files)
+        f_files = pool.submit(_fetch_files)
         f_chunks = pool.submit(_count_chunks)
-        file_count = f_files.result()
+        files = f_files.result()
         chunk_count = f_chunks.result()
+
+    file_count = len(files)
     if file_count == 0 and chunk_count == 0:
         return '<span id="partition-stats" class="text-[11px]" style="color:var(--text-subtle);">—</span>'
-    parts = []
+
+    sep = ' <span class="opacity-40">·</span> '
+    counts = []
+    charts = []
+
+    # Doc + chunk counts
     if file_count:
         label = t("stats.files") if file_count != 1 else t("stats.file")
-        parts.append(f'<i data-lucide="file" class="w-2.5 h-2.5 inline" style="vertical-align:-1px;"></i> {file_count} {label}')
+        counts.append(f'<i data-lucide="file" class="w-2.5 h-2.5 inline" style="vertical-align:-1px;"></i> {file_count} {label}')
     if chunk_count:
         label = t("stats.chunks") if chunk_count != 1 else t("stats.chunk")
-        parts.append(f'<i data-lucide="puzzle" class="w-2.5 h-2.5 inline" style="vertical-align:-1px;"></i> {chunk_count} {label}')
-    text = ' <span class="opacity-40">·</span> '.join(parts)
+        counts.append(f'<i data-lucide="puzzle" class="w-2.5 h-2.5 inline" style="vertical-align:-1px;"></i> {chunk_count} {label}')
+
+    # Pie chart per doc type
+    type_counter = Counter()
+    for f in files:
+        fname = f.get("original_filename", f.get("filename", f.get("file_id", "")))
+        ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else "other"
+        type_counter[ext] += 1
+    if type_counter:
+        for ext, count in type_counter.most_common(6):
+            pct = min(100, int(count / file_count * 100))
+            charts.append(
+                f'<span title="{ext}: {count}" style="white-space:nowrap;">'
+                f'<span class="chart" style="font-size:1.25rem;vertical-align:-3px;">{{p:{pct}}}</span>'
+                f'&nbsp;<span class="text-[9px]" style="color:var(--text-subtle);">{ext}</span>'
+                f'</span>'
+            )
+
+    # Growth sparkline
+    now = datetime.utcnow()
+    day_counts = [0] * 10
+    for f in files:
+        created = f.get("created_at", "")
+        if not created:
+            continue
+        try:
+            dt = datetime.fromisoformat(created.replace("Z", "").split("+")[0])
+            delta = (now - dt).days
+            if 0 <= delta < 10:
+                day_counts[9 - delta] += 1
+        except Exception:
+            pass
+    for i in range(1, len(day_counts)):
+        day_counts[i] += day_counts[i - 1]
+    gmax = max(day_counts) if day_counts else 1
+    growth_values = [min(100, int(v / gmax * 100)) if gmax else 0 for v in day_counts]
+    if any(v > 0 for v in growth_values):
+        charts.append(f'<span class="chart" style="font-size:1.25rem;vertical-align:-3px;">{{l:{",".join(str(v) for v in growth_values)}}}</span>')
+
+    text = sep.join(counts)
+    if charts:
+        text += sep + sep.join(charts)
     return f'<span id="partition-stats" class="text-[11px]" style="color:var(--text-muted);">{text}</span>'
+
+
+@chat_bp.route("/documents")
+def documents_panel():
+    """Return the documents panel with Datatype charts for the active partition."""
+    from collections import Counter
+    from concurrent.futures import ThreadPoolExecutor
+
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    partition = session.get("active_partition", "openrag-all").replace("openrag-", "")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    files = []
+    user_info = {}
+
+    def _fetch_files():
+        try:
+            r = httpx.get(f"{api_url}/partition/{partition}", headers=headers, timeout=10.0)
+            if r.status_code == 200:
+                return r.json().get("files", [])
+        except Exception:
+            pass
+        return []
+
+    def _fetch_user_info():
+        try:
+            r = httpx.get(f"{api_url}/users/info", headers=headers, timeout=5.0)
+            if r.status_code == 200:
+                return r.json()
+        except Exception:
+            pass
+        return {}
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f_files = pool.submit(_fetch_files)
+        f_info = pool.submit(_fetch_user_info)
+        files = f_files.result()
+        user_info = f_info.result()
+
+    # Quota
+    total_files = user_info.get("total_files", 0)
+    file_quota = user_info.get("file_quota", 0)
+    quota_pct = min(100, int(total_files / file_quota * 100)) if file_quota else 0
+    indexed = user_info.get("indexed_files", 0)
+    pending = user_info.get("pending_files", 0)
+
+    # By type
+    type_counter = Counter()
+    for f in files:
+        fname = f.get("original_filename", f.get("filename", f.get("file_id", "")))
+        ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else "other"
+        type_counter[ext] += 1
+    # Normalize to 0-100, keep top 6
+    type_items = type_counter.most_common(6)
+    type_max = max((c for _, c in type_items), default=1)
+    type_labels = [ext for ext, _ in type_items]
+    type_values = [min(100, int(c / type_max * 100)) for _, c in type_items]
+
+    # Growth sparkline — files by creation date (last 10 days)
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
+    day_counts = [0] * 10
+    for f in files:
+        created = f.get("created_at", "")
+        if not created:
+            continue
+        try:
+            dt = datetime.fromisoformat(created.replace("Z", "+00:00").replace("+00:00", ""))
+        except Exception:
+            continue
+        delta = (now - dt).days
+        if 0 <= delta < 10:
+            day_counts[9 - delta] += 1
+    # Cumulative
+    for i in range(1, len(day_counts)):
+        day_counts[i] += day_counts[i - 1]
+    growth_max = max(day_counts) if day_counts else 1
+    growth_values = [min(100, int(v / growth_max * 100)) if growth_max else 0 for v in day_counts]
+
+    return render_template("app/documents.html",
+                           partition=partition,
+                           quota_pct=quota_pct,
+                           total_files=total_files,
+                           file_quota=file_quota,
+                           indexed=indexed,
+                           pending=pending,
+                           type_labels=type_labels,
+                           type_values=type_values,
+                           type_items=type_items,
+                           growth_values=growth_values,
+                           files=files,
+                           file_count=len(files))
 
 
 @chat_bp.route("/partition-files/<partition>")

@@ -1171,7 +1171,6 @@ function sendMessage(e) {
     userDiv.className = 'msg msg-user';
     userDiv.innerHTML = partitionLabel + '<span>' + msg.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
     group.appendChild(userDiv);
-    addDismiss(userDiv);
 
     var assistantDiv = document.createElement('div');
     assistantDiv.className = 'msg msg-assistant';

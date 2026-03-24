@@ -878,6 +878,44 @@ RCS Nanterre — SIREN 431 473 669<br>
         "fr": "fragments",
     },
 
+    # Documents panel
+    "docs.quota": {
+        "en": "Quota",
+        "fr": "Quota",
+    },
+    "docs.files_used": {
+        "en": "files used",
+        "fr": "fichiers utilisés",
+    },
+    "docs.by_type": {
+        "en": "By type",
+        "fr": "Par type",
+    },
+    "docs.growth": {
+        "en": "Growth",
+        "fr": "Croissance",
+    },
+    "docs.last_10_days": {
+        "en": "last 10 days",
+        "fr": "10 derniers jours",
+    },
+    "docs.indexed": {
+        "en": "Indexed",
+        "fr": "Indexés",
+    },
+    "docs.pending": {
+        "en": "Pending",
+        "fr": "En attente",
+    },
+    "docs.total": {
+        "en": "Total",
+        "fr": "Total",
+    },
+    "docs.title": {
+        "en": "Documents",
+        "fr": "Documents",
+    },
+
     # Roles
     "role.none": {
         "en": "No access",

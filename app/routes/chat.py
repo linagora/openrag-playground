@@ -700,11 +700,22 @@ def api_version():
     return ""
 
 
+@chat_bp.route("/clear-history", methods=["POST"])
+def clear_history():
+    """Clear conversation history for the active partition."""
+    partition = session.get("active_partition", "openrag-all")
+    session.pop(f"chat_history_{partition}", None)
+    return "", 204
+
+
 @chat_bp.route("/select-partition", methods=["POST"])
 def select_partition():
     """Set active partition in session."""
     partition = request.form.get("partition", "openrag-all")
+    old_partition = session.get("active_partition")
     session["active_partition"] = partition
+    if old_partition and old_partition != partition:
+        session.pop(f"chat_history_{old_partition}", None)
     token, api_url = _get_credentials()
     parts = _fetch_partitions(token, api_url)
     prefix = _common_prefix(parts)
@@ -759,6 +770,11 @@ def chat_stream():
 
     partition = session.get("active_partition", "openrag-all")
 
+    # Build conversation history for this partition
+    history_key = f"chat_history_{partition}"
+    history = session.get(history_key, [])
+    history.append({"role": "user", "content": message})
+
     def generate():
         import markdown as md
 
@@ -772,7 +788,7 @@ def chat_stream():
                 headers={"Authorization": f"Bearer {token}"},
                 json={
                     "model": partition,
-                    "messages": [{"role": "user", "content": message}],
+                    "messages": history,
                     "stream": True,
                 },
                 timeout=httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0),
@@ -820,9 +836,14 @@ def chat_stream():
             current_app.logger.error("Stream error: %s", e)
             yield _sse_event("token", f"<div class='mt-2' style='color:var(--danger)'>{t('chat.error.generic')}</div>")
 
-        # Send rendered markdown to replace raw text
+        # Save assistant response to conversation history
         if full_text:
-            rendered = md.markdown("".join(full_text), extensions=["tables", "fenced_code"])
+            assistant_text = "".join(full_text)
+            history.append({"role": "assistant", "content": assistant_text})
+            # Keep last 20 messages to avoid session bloat
+            session[history_key] = history[-20:]
+
+            rendered = md.markdown(assistant_text, extensions=["tables", "fenced_code"])
             yield _sse_event("rendered", rendered)
 
         # Send sources after stream ends

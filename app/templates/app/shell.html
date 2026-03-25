@@ -1112,6 +1112,7 @@ function clearChat() {
     messages.innerHTML = '<div class="flex items-center justify-center flex-1" style="color: var(--text-subtle);"><div class="text-center"><i data-lucide="message-circle" class="w-10 h-10 mx-auto mb-2" style="opacity: 0.3;" title="' + (document.getElementById('i18n-data').dataset.tooltipStartConversation || '') + '"></i><p class="text-sm">{{ t("app.empty_chat") }}</p></div></div>';
     if (typeof lucide !== 'undefined') lucide.createIcons();
     updateClearBtn();
+    fetch('/chat/clear-history', { method: 'POST' });
 }
 
 var activeStream = null;

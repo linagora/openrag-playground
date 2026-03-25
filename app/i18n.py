@@ -481,6 +481,10 @@ TRANSLATIONS = {
         "en": "No messages yet",
         "fr": "Aucun message",
     },
+    "app.no_prompts": {
+        "en": "No demo prompts available",
+        "fr": "Aucun prompt disponible",
+    },
     "app.no_files": {
         "en": "No files",
         "fr": "Aucun fichier",

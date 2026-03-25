@@ -608,7 +608,7 @@ def suggestions():
         filtered.append(p)
 
     if not filtered:
-        return ""
+        return f'<div class="suggestion-empty text-xs px-3 py-2" style="color:var(--text-subtle);">{t("app.no_prompts")}</div>'
     return render_template("app/suggestions.html", prompts=filtered)
 
 

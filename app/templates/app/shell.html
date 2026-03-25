@@ -459,7 +459,8 @@
     }
     .chat-input {
         width: 100%;
-        padding: 0.75rem 1rem;
+        height: 2.5rem;
+        padding: 0.5rem 1rem;
         border-radius: 0.75rem;
         border: 1px solid var(--border);
         background: var(--bg-elevated);
@@ -774,9 +775,9 @@
             <!-- Hidden file input -->
             <input type="file" id="file-upload-input" style="display:none" onchange="uploadFile(this)">
             <form id="chat-form" onsubmit="sendMessage(event)">
-                <div class="flex gap-2">
+                <div class="flex gap-2 items-center">
                     <button type="button" id="upload-btn" onclick="document.getElementById('file-upload-input').click()"
-                            class="px-3 rounded-lg cursor-pointer transition-opacity shrink-0"
+                            class="px-3 h-10 rounded-lg cursor-pointer transition-opacity shrink-0"
                             style="background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted);"
                             title="{{ t('tooltip.upload_file') }}">
                         <i data-lucide="cloud-upload" class="w-4 h-4"></i>
@@ -788,11 +789,11 @@
                               title="{{ t('tooltip.type_message') }}"
                               onkeydown="handleInputKeydown(event)"></textarea>
                     </div>
-                    <button type="submit" id="send-btn" class="px-4 rounded-lg cursor-pointer transition-opacity hover:opacity-90 shrink-0"
+                    <button type="submit" id="send-btn" class="px-4 h-10 rounded-lg cursor-pointer transition-opacity hover:opacity-90 shrink-0 border border-transparent"
                             style="background: var(--accent); color: white;" title="{{ t('tooltip.send_message') }}">
                         <i data-lucide="send" class="w-4 h-4"></i>
                     </button>
-                    <button type="button" id="stop-btn" class="px-4 rounded-lg cursor-pointer transition-opacity hover:opacity-90 shrink-0"
+                    <button type="button" id="stop-btn" class="px-4 h-10 rounded-lg cursor-pointer transition-opacity hover:opacity-90 shrink-0 border border-transparent"
                             style="background: var(--accent); color: white; display: none;" title="{{ t('tooltip.stop_streaming') }}"
                             onclick="stopStreaming()">
                         <i data-lucide="square" class="w-4 h-4"></i>

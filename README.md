@@ -7,11 +7,14 @@ A demo interface for [Open-RAG.ai](https://open-rag.ai), purpose-built for smoot
 ## Features
 
 - **Persona-based login** — fake user profiles backed by real OpenRAG tokens
-- **Streaming chat** — SSE-based token streaming with source citations
-- **Partition tree** — browse partitions, view files and chunks
+- **Streaming chat** — SSE-based token streaming with markdown rendering and source citations
+- **Semantic search** — type `#` to search documents without LLM
+- **Partition tree** — browse partitions, view files and chunks, manage access
 - **File upload** — upload documents to partitions with indexing status
 - **Prompt suggestions** — type `/` to pick from pre-configured prompts
-- **Admin panel** — manage groups, users, and prompts
+- **Copy to clipboard** — copy answers and chunks with one click
+- **Admin panel** — manage groups, users, prompts, import config
+- **Conversation context** — follow-up questions retain context within a partition
 - **i18n** — English and French, auto-detected from browser
 - **Dark/Light themes**
 - **GDPR compliant** — zero external requests, all assets self-hosted

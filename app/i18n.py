@@ -45,6 +45,10 @@ TRANSLATIONS = {
         "en": "Legal Notice",
         "fr": "Mentions légales",
     },
+    "footer.manual": {
+        "en": "Help",
+        "fr": "Aide",
+    },
 
     # Setup wizard
     "setup.title": {
@@ -446,8 +450,8 @@ TRANSLATIONS = {
         "fr": "Démarrez une conversation",
     },
     "app.placeholder": {
-        "en": "Type a message...",
-        "fr": "Écrivez un message...",
+        "en": "Type your question here… (or / saved prompts, # pure semantic search)",
+        "fr": "Entrez votre question ici… (ou / rappeler un prompt enregistré, # recherche sémantique pure)",
     },
     "app.logout": {
         "en": "Log out",
@@ -484,6 +488,14 @@ TRANSLATIONS = {
     "app.no_prompts": {
         "en": "No demo prompts available",
         "fr": "Aucun prompt disponible",
+    },
+    "app.no_results": {
+        "en": "No results found",
+        "fr": "Aucun résultat",
+    },
+    "app.search_results": {
+        "en": "Search results",
+        "fr": "Résultats de recherche",
     },
     "app.no_files": {
         "en": "No files",
@@ -636,6 +648,10 @@ TRANSLATIONS = {
     "tooltip.legal_notice": {
         "en": "Legal notice",
         "fr": "Mentions légales",
+    },
+    "tooltip.user_manual": {
+        "en": "User manual",
+        "fr": "Manuel utilisateur",
     },
     "tooltip.api_version": {
         "en": "OpenRAG API version",

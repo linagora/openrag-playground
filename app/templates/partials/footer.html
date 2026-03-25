@@ -11,6 +11,8 @@
         <a href="#" hx-get="/sovereignty" hx-target="#modal" hx-swap="innerHTML" title="{{ t('tooltip.digital_sovereignty') }}">{{ t('footer.sovereignty') }}</a>
         <span class="separator">&middot;</span>
         <a href="#" hx-get="/legal" hx-target="#modal" hx-swap="innerHTML" title="{{ t('tooltip.legal_notice') }}">{{ t('footer.legal') }}</a>
+        <span class="separator">&middot;</span>
+        <a href="#" hx-get="/manual" hx-target="#modal" hx-swap="innerHTML" title="{{ t('tooltip.user_manual') }}">{{ t('footer.manual') }}</a>
         {% if session.get('demo_user') %}
         <span id="footer-version" hx-get="/chat/api-version" hx-trigger="load" hx-swap="outerHTML" title="{{ t('tooltip.api_version') }}"></span>
         <span id="footer-health" hx-get="/chat/health-check" hx-trigger="load" hx-swap="innerHTML"></span>

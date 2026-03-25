@@ -1,12 +1,12 @@
 <div class="confirm-overlay" onclick="if(event.target===this)this.remove()">
-    <div class="confirm-box max-w-[520px] max-h-[80vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-base font-bold">{{ title }}</h3>
-            <button onclick="this.closest('.confirm-overlay').remove()" class="cursor-pointer" style="color: var(--text-muted);">
+    <div class="confirm-box max-w-3xl" style="max-height: 85vh; display: flex; flex-direction: column;">
+        <div class="flex items-center justify-between {{ 'mb-4' if title }} shrink-0">
+            {% if title %}<h3 class="text-base font-bold">{{ title }}</h3>{% endif %}
+            <button onclick="this.closest('.confirm-overlay').remove()" class="cursor-pointer ml-auto" style="color: var(--text-muted);">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
-        <div class="text-sm leading-relaxed" style="color: var(--text-muted);">
+        <div class="text-sm leading-relaxed overflow-y-auto" style="color: var(--text-muted);">
             {{ content | safe }}
         </div>
     </div>

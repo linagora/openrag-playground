@@ -751,6 +751,69 @@ def _friendly_error(status_code, body):
     return t("chat.error.generic")
 
 
+@chat_bp.route("/search")
+def semantic_search():
+    """Semantic search — returns chunks as HTML."""
+    import markdown as md
+
+    query = request.args.get("text", "").strip()
+    if not query:
+        return "", 400
+    token, api_url = _get_credentials()
+    if not token:
+        return "", 401
+    partition = session.get("active_partition", "openrag-all").replace("openrag-", "")
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        if partition and partition != "all":
+            resp = httpx.get(f"{api_url}/search/partition/{partition}",
+                             params={"text": query, "top_k": 10}, headers=headers, timeout=15.0)
+        else:
+            resp = httpx.get(f"{api_url}/search",
+                             params={"text": query, "top_k": 10}, headers=headers, timeout=15.0)
+        if resp.status_code != 200:
+            return jsonify([])
+        results = resp.json()
+        items = results if isinstance(results, list) else results.get("documents", results.get("results", results.get("chunks", [])))
+        chunks = []
+        for item in items[:10]:
+            text = item.get("page_content", item.get("content", ""))
+            if not text and item.get("link"):
+                link = item["link"]
+                if api_url.startswith("https://") and link.startswith("http://"):
+                    link = "https://" + link[7:]
+                try:
+                    r = httpx.get(link, headers=headers, timeout=5.0)
+                    if r.status_code == 200:
+                        text = r.json().get("page_content", "")
+                except Exception:
+                    pass
+            if text.startswith("[CONTEXT] "):
+                text = text[10:]
+            elif text.startswith("[CONTEXT]"):
+                text = text[9:]
+            meta = item.get("metadata", {})
+            fname = meta.get("original_filename", meta.get("filename", meta.get("file_id", "")))
+            source = meta.get("source", "")
+            partition_name = meta.get("partition", partition)
+            static_path = source.replace("/app/data/", "/static/", 1) if source else ""
+            page = meta.get("page", "")
+            score = item.get("score", item.get("distance", None))
+            rendered = md.markdown(text, extensions=["tables", "fenced_code"])
+            chunks.append({
+                "filename": fname,
+                "partition": partition_name,
+                "static_path": static_path,
+                "page": str(page) if page else "",
+                "score": score,
+                "html": rendered,
+            })
+        return jsonify(chunks)
+    except Exception:
+        return f'<div style="color:var(--danger);">{t("chat.error.generic")}</div>'
+
+
+
 def _sse_event(event, data):
     """Format an SSE event, handling multi-line data."""
     lines = data.replace("\n", "")  # SSE data must be single-line for simple cases

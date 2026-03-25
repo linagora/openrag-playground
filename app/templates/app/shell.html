@@ -501,6 +501,20 @@
         line-height: 1;
         transition: color 150ms ease;
     }
+    .msg-copy {
+        position: absolute;
+        top: 0.375rem;
+        right: 1.75rem;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text-subtle);
+        padding: 0;
+        line-height: 1;
+        transition: color 150ms ease;
+    }
+    .msg-copy:hover { color: var(--accent); }
+
     .msg-newtab {
         position: absolute;
         top: 0.375rem;
@@ -826,7 +840,9 @@
      data-save-partition="{{ t('app.save_prompt.partition') }}"
      data-user-group="{{ user.group }}"
      data-user-id="{{ user.id }}"
-     data-confirm-delete-file="{{ t('app.confirm_delete_file') }}"></div>
+     data-confirm-delete-file="{{ t('app.confirm_delete_file') }}"
+     data-search-results="{{ t('app.search_results') }}"
+     data-no-results="{{ t('app.no_results') }}"></div>
 
 <script>
 // User dropdown menu
@@ -1141,6 +1157,65 @@ function stopStreaming() {
     updateClearBtn();
 }
 
+function doSemanticSearch(query, partition) {
+    var messages = document.getElementById('chat-messages');
+    var emptyState = messages.querySelector('.flex.items-center.justify-center');
+    if (emptyState) emptyState.remove();
+
+    var i18n = document.getElementById('i18n-data').dataset;
+    var partitionLabel = '<span class="msg-partition" title="' + i18n.tooltipSentTo + ': ' + partition + '">' + partition + '</span>';
+
+    var userDiv = document.createElement('div');
+    userDiv.className = 'msg msg-user';
+    userDiv.innerHTML = partitionLabel + '<span><i data-lucide="search" class="w-3 h-3 inline" style="vertical-align:-1px;"></i> ' + query.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+    messages.appendChild(userDiv);
+
+    var spinner = document.createElement('div');
+    spinner.className = 'msg msg-assistant';
+    spinner.innerHTML = '<div class="flex justify-center py-2">{% include "partials/spinner.html" %}</div>';
+    messages.appendChild(spinner);
+    updateClearBtn();
+    messages.scrollTop = messages.scrollHeight;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    fetch('/chat/search?text=' + encodeURIComponent(query))
+        .then(function(r) { return r.json(); })
+        .then(function(chunks) {
+            spinner.remove();
+            if (!chunks.length) {
+                var empty = document.createElement('div');
+                empty.className = 'msg msg-assistant';
+                empty.innerHTML = '<div class="text-xs" style="color:var(--text-subtle);">' + (i18n.noResults || 'No results found') + '</div>';
+                messages.appendChild(empty);
+                addDismiss(empty);
+            } else {
+                var row = getOrCreateInlineRow(messages);
+                chunks.forEach(function(c) {
+                    var div = document.createElement('div');
+                    div.className = 'msg msg-assistant msg-inline';
+                    var header = '<div class="text-[10px] font-semibold mb-1" style="color:var(--text-muted);">';
+                    if (c.filename) {
+                        var proxyUrl = '/chat/file-proxy/' + c.partition + '/' + encodeURIComponent(c.filename) + '?source=' + encodeURIComponent(c.static_path);
+                        header += '<a href="' + proxyUrl + '" target="_blank" rel="noopener" style="color:var(--accent);" title="' + c.filename + '">' +
+                            '<i data-lucide="file" class="w-2.5 h-2.5 inline" style="vertical-align:-1px;"></i> ' + c.filename + '</a>';
+                    }
+                    if (c.page) header += ' p.' + c.page;
+                    if (c.score != null) {
+                        try { header += ' — ' + Math.round(c.score * 100) + '%'; } catch(e) {}
+                    }
+                    header += '</div>';
+                    var pLabel = '<span class="msg-partition" title="' + c.partition + '">' + c.partition + '</span>';
+                    div.innerHTML = pLabel + header + '<div class="md-content">' + c.html + '</div>';
+                    row.appendChild(div);
+                    addCopy(div);
+                    addDismiss(div);
+                });
+            }
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            messages.scrollTop = messages.scrollHeight;
+        });
+}
+
 function sendMessage(e) {
     e.preventDefault();
     var input = document.getElementById('chat-input');
@@ -1150,6 +1225,11 @@ function sendMessage(e) {
     document.getElementById('suggestions-dropdown').style.display = 'none';
     var partition = getPartitionName();
     addToHistory(msg, partition);
+
+    // Semantic search mode (# prefix)
+    if (msg.startsWith('#')) {
+        return doSemanticSearch(msg.substring(1).trim(), partition);
+    }
 
     var messages = document.getElementById('chat-messages');
     var sendBtn = document.getElementById('send-btn');
@@ -1280,6 +1360,7 @@ function sendMessage(e) {
         if (spinner) spinner.remove();
         var bubble = document.getElementById('streaming-bubble');
         if (bubble) {
+            addCopy(bubble);
             addDismiss(bubble);
             bubble.removeAttribute('id');
         }
@@ -1462,6 +1543,32 @@ function deleteFile(btn, partition, fileId) {
     });
 }
 
+function addCopy(el) {
+    var btn = document.createElement('button');
+    btn.className = 'msg-copy';
+    btn.innerHTML = '<i data-lucide="copy" class="w-3.5 h-3.5"></i>';
+    btn.onclick = function(e) {
+        e.stopPropagation();
+        // Clone, remove partition label and action buttons, copy as rich text
+        var clone = el.cloneNode(true);
+        clone.querySelectorAll('.msg-partition, .msg-dismiss, .msg-copy, .msg-newtab').forEach(function(x) { x.remove(); });
+        var html = clone.innerHTML.trim();
+        var plain = clone.innerText || clone.textContent || '';
+        var blob = new Blob([html], { type: 'text/html' });
+        var textBlob = new Blob([plain.trim()], { type: 'text/plain' });
+        navigator.clipboard.write([new ClipboardItem({ 'text/html': blob, 'text/plain': textBlob })]).then(function() {
+            btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i>';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            setTimeout(function() {
+                btn.innerHTML = '<i data-lucide="copy" class="w-3.5 h-3.5"></i>';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }, 1500);
+        });
+    };
+    el.appendChild(btn);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 function addDismiss(el) {
     var btn = document.createElement('button');
     btn.className = 'msg-dismiss';
@@ -1553,6 +1660,7 @@ function viewChunk(el) {
             div.innerHTML = '<div class="text-xs font-semibold mb-2" style="color:var(--text-muted);">' +
                 '<i data-lucide="text" class="w-3 h-3 inline-block" style="vertical-align:-1px;"></i> Chunk' +
                 '</div>' + html;
+            addCopy(div);
             addDismiss(div);
             messages.scrollTop = messages.scrollHeight;
         });
@@ -1681,6 +1789,7 @@ function viewSourceChunk(chunkUrl) {
             div.innerHTML = '<div class="text-xs font-semibold mb-2" style="color:var(--text-muted);">' +
                 '<i data-lucide="puzzle" class="w-3 h-3 inline-block" style="vertical-align:-1px;"></i> Chunk' +
                 '</div><div class="md-content">' + html + '</div>';
+            addCopy(div);
             addDismiss(div);
             if (typeof lucide !== 'undefined') lucide.createIcons();
             messages.scrollTop = messages.scrollHeight;

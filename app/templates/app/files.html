@@ -15,5 +15,5 @@
 </div>
 {% endfor %}
 {% if not files %}
-<div class="file-item" style="color: var(--text-subtle); font-size: 0.6875rem;">{{ t('app.no_files') if t is defined else 'No files' }}</div>
+<div class="file-item text-xs" style="color: var(--text-subtle);">{{ t('app.no_files') if t is defined else 'No files' }}</div>
 {% endif %}

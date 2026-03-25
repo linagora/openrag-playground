@@ -1,5 +1,5 @@
 {% for m in members %}
-<div class="flex items-center gap-1.5 px-1 py-0.5" style="color: var(--text-muted); font-size: 0.8125rem;">
+<div class="flex items-center gap-1.5 px-1 py-0.5 text-sm" style="color: var(--text-muted);">
     <span class="truncate flex-1" style="{{ 'opacity:0.4;' if m.role == 'none' }}">{{ m.name }}</span>
     <div class="flex items-center gap-1 shrink-0">
         {% for r, icon in [('none','x'), ('viewer','eye'), ('editor','cloud-upload'), ('owner','shield')] %}

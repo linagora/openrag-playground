@@ -100,7 +100,7 @@ def partitions():
         if p["id"] == active:
             active_role = p.get("role") or ""
             break
-    oob = f'<span id="partition-label" hx-swap-oob="true" class="text-sm font-semibold" data-role="{active_role}">{display}</span>'
+    oob = f'<span id="partition-label" hx-swap-oob="true" class="text-base font-semibold" data-role="{active_role}">{display}</span>'
     return render_template("app/partitions.html", partitions=parts, active=active, strip_prefix=prefix) + oob
 
 
@@ -729,7 +729,7 @@ def select_partition():
             active_role = p.get("role") or ""
             break
     tree_html = render_template("app/partitions.html", partitions=parts, active=partition, strip_prefix=prefix)
-    oob = f'<span id="partition-label" hx-swap-oob="true" class="text-sm font-semibold" data-role="{active_role}">{display}</span>'
+    oob = f'<span id="partition-label" hx-swap-oob="true" class="text-base font-semibold" data-role="{active_role}">{display}</span>'
     return tree_html + oob
 
 

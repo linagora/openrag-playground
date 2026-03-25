@@ -142,8 +142,8 @@
 
 <!-- Login overlay (hidden) -->
 <div id="login-overlay" class="login-overlay" style="display: none;" onclick="if(event.target===this)closeLogin()">
-    <div class="login-modal" style="position: relative;">
-        <div id="modal-group" style="position: absolute; top: -0.5rem; right: 1.2rem;"></div>
+    <div class="login-modal relative">
+        <div id="modal-group" class="absolute -top-2 right-5"></div>
         <div class="flex items-center gap-3 mb-4">
             <div id="modal-avatar"></div>
             <div class="min-w-0">
@@ -153,8 +153,8 @@
         </div>
         <div class="mb-4">
             <label class="block text-xs mb-1" style="color: var(--text-subtle);">{{ t('login.password') }}</label>
-            <div id="modal-fake-pw" class="w-full px-4 py-2.5 rounded-lg text-sm fake-password cursor-default"
-                 style="background: var(--bg-elevated); border: 1px solid var(--border); user-select: none;" title="{{ t('tooltip.prefilled_password') }}"></div>
+            <div id="modal-fake-pw" class="w-full px-4 py-2.5 rounded-lg text-sm fake-password cursor-default select-none"
+                 style="background: var(--bg-elevated); border: 1px solid var(--border);" title="{{ t('tooltip.prefilled_password') }}"></div>
         </div>
         <form method="POST" action="{{ url_for('demo.login') }}">
             <input type="hidden" name="user_id" id="login-user-id" value="">

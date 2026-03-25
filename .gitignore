@@ -10,5 +10,6 @@ build/
 venv/
 .venv/
 env/
+*.pem
 .claude/
 CLAUDE.md

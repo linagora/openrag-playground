@@ -38,6 +38,54 @@ flask run --debug
 
 Visit `http://localhost:5000`. On first run, a setup wizard will prompt you to create a master password. Then use `/admin` to configure groups, users, and prompts.
 
+### Run (local HTTPS demo)
+
+**1. Edit `/etc/hosts`**
+
+Add `127.0.0.1 openrag.playground` to `/etc/hosts`.
+
+**2. Install authbind**
+```bash
+sudo apt install authbind
+```
+
+**3. Authorize ports 80 and 443**
+```bash
+sudo touch /etc/authbind/byport/80
+sudo chmod 500 /etc/authbind/byport/80
+sudo chown $USER /etc/authbind/byport/80
+
+sudo touch /etc/authbind/byport/443
+sudo chmod 500 /etc/authbind/byport/443
+sudo chown $USER /etc/authbind/byport/443
+```
+
+**4. Generate the self-signed certificate**
+```bash
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes \
+  -subj "/CN=openrag.playground" \
+  -addext "subjectAltName=DNS:openrag.playground"
+```
+
+**5. Trust the certificate (optional)**
+
+You can avoid the browser warning by trusting the certificate, but do this with care — it affects all TLS-aware tools system-wide (curl, wget, Python requests, etc.), not just your browser.
+
+For the system trust store:
+```bash
+sudo cp cert.pem /usr/local/share/ca-certificates/openrag.playground.crt
+sudo update-ca-certificates
+```
+
+A lighter alternative is to import `cert.pem` directly in your browser only — Chrome or Firefox both allow this under Settings → Privacy & Security → Manage Certificates → Authorities. To clean up afterwards, just remove it from the same place.
+
+**6. Run Flask**
+```bash
+authbind --deep flask run --debug -p 443 --cert=cert.pem --key=key.pem
+```
+
+Access your app at **https://openrag.playground**
+
 ### Run (production)
 
 ```bash

@@ -1289,8 +1289,9 @@ function sendMessage(e) {
 
     function stripMd(text) {
         return text
-            .replace(/```\w*\n?/g, '')
+            .replace(/```[\s\S]*?```/g, '')
             .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            .replace(/\*\*\*([^*]*)\*\*\*/g, '$1')
             .replace(/\*\*([^*]*)\*\*/g, '$1')
             .replace(/\*([^*]*)\*/g, '$1')
             .replace(/`([^`]*)`/g, '$1')
@@ -1299,19 +1300,20 @@ function sendMessage(e) {
             .replace(/\n{3,}/g, '\n\n');
     }
 
+    var lastClean = '';
     function typeNext() {
         var bubble = document.getElementById('streaming-bubble');
         if (!bubble) return;
-        var clean = stripMd(rawBuffer);
-        if (displayedLen < clean.length) {
-            var chunk = clean.substring(displayedLen, displayedLen + 3);
+        lastClean = stripMd(rawBuffer);
+        if (displayedLen < lastClean.length) {
+            var chunk = lastClean.substring(displayedLen, displayedLen + 3);
             displayedLen += chunk.length;
-            var display = clean.substring(0, displayedLen).replace(/\n+/g, '<br>');
+            var display = lastClean.substring(0, displayedLen).replace(/\n+/g, '<br>');
             var label = bubble.querySelector('.msg-partition');
             bubble.innerHTML = (label ? label.outerHTML : '') + '<span class="stream-text">' + display + '</span>' + dotsHtml;
             messages.scrollTop = messages.scrollHeight;
         }
-        if (displayedLen < stripMd(rawBuffer).length) {
+        if (displayedLen < lastClean.length) {
             typeTimer = requestAnimationFrame(typeNext);
         } else {
             typeTimer = setTimeout(typeNext, 30);
@@ -1357,6 +1359,7 @@ function sendMessage(e) {
 
     source.addEventListener('done', function() {
         source.close();
+        if (typeTimer) { cancelAnimationFrame(typeTimer); clearTimeout(typeTimer); typeTimer = null; }
         enableSend();
         var spinner = document.getElementById('stream-spinner');
         if (spinner) spinner.remove();

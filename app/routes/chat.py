@@ -64,6 +64,23 @@ def _fetch_partitions(token, api_url):
         return []
 
 
+def _partition_display(partition_id, parts, prefix):
+    """Return (display_name, active_role, oob_html) for a partition."""
+    if partition_id == "openrag-all":
+        display = t("app.partition_all")
+    else:
+        display = partition_id.replace("openrag-", "")
+        if prefix:
+            display = display[len(prefix):]
+    role = ""
+    for p in parts:
+        if p["id"] == partition_id:
+            role = p.get("role") or ""
+            break
+    oob = f'<span id="partition-label" hx-swap-oob="true" class="text-base font-semibold" data-role="{role}">{display}</span>'
+    return display, role, oob
+
+
 def _common_prefix(partitions):
     """Find common prefix among non-all partitions. Only strip if it ends with - _ or /."""
     children = [p["id"].replace("openrag-", "") for p in partitions if p["id"] != "openrag-all"]
@@ -91,19 +108,7 @@ def partitions():
     active = session.get("active_partition", parts[0]["id"] if parts else "openrag-all")
     prefix = _common_prefix(parts)
     session["partition_prefix"] = prefix
-    # OOB swap to update header label on initial load too
-    if active == "openrag-all":
-        display = t("app.partition_all")
-    else:
-        display = active.replace("openrag-", "")
-        if prefix:
-            display = display[len(prefix):]
-    active_role = ""
-    for p in parts:
-        if p["id"] == active:
-            active_role = p.get("role") or ""
-            break
-    oob = f'<span id="partition-label" hx-swap-oob="true" class="text-base font-semibold" data-role="{active_role}">{display}</span>'
+    _, _, oob = _partition_display(active, parts, prefix)
     return render_template("app/partitions.html", partitions=parts, active=active, strip_prefix=prefix) + oob
 
 
@@ -735,19 +740,8 @@ def select_partition():
     parts = _fetch_partitions(token, api_url)
     prefix = _common_prefix(parts)
     session["partition_prefix"] = prefix
-    if partition == "openrag-all":
-        display = t("app.partition_all")
-    else:
-        display = partition.replace("openrag-", "")
-        if prefix:
-            display = display[len(prefix):]
-    active_role = ""
-    for p in parts:
-        if p["id"] == partition:
-            active_role = p.get("role") or ""
-            break
+    _, _, oob = _partition_display(partition, parts, prefix)
     tree_html = render_template("app/partitions.html", partitions=parts, active=partition, strip_prefix=prefix)
-    oob = f'<span id="partition-label" hx-swap-oob="true" class="text-base font-semibold" data-role="{active_role}">{display}</span>'
     return tree_html + oob
 
 

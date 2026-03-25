@@ -161,17 +161,23 @@ openrag-playground/
 │   ├── yaml_store.py        # Config read/write
 │   ├── routes/
 │   │   ├── admin.py         # Admin CRUD
-│   │   ├── auth.py          # /unlock
-│   │   ├── chat.py          # Chat, streaming, files
+│   │   ├── auth.py          # /unlock, /logout
+│   │   ├── chat.py          # Chat, streaming, search, files
 │   │   ├── demo.py          # Persona login
-│   │   ├── pages.py         # Footer modals
+│   │   ├── pages.py         # Footer modals (from markdown)
 │   │   └── setup.py         # First-run wizard
 │   ├── templates/           # Jinja2 templates
 │   └── static/              # CSS, JS, fonts, images
+├── docs/
+│   ├── en/                  # English docs (about, gdpr, manual…)
+│   └── fr/                  # French docs
 ├── tests/
 ├── config.example.yaml
 ├── requirements.txt
 ├── pyproject.toml
+├── Dockerfile
+├── docker-compose.yml
+├── Caddyfile
 └── run.py
 ```
 

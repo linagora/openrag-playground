@@ -21,7 +21,7 @@ def _load_doc(name):
     if not os.path.exists(path):
         path = os.path.join(DOCS_DIR, "en", f"{name}.md")
     if not os.path.exists(path):
-        return "", ""
+        return name.replace("-", " ").title(), "<p>Document not found.</p>"
     with open(path, "r", encoding="utf-8") as f:
         text = f.read()
     # Extract title from first # heading but keep it in content

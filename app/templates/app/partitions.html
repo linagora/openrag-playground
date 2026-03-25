@@ -2,7 +2,7 @@
 {% set pid = p.id %}
 {% set raw_name = pid | replace('openrag-', '') %}
 {% set is_all = (pid == 'openrag-all') %}
-{% set display_name = raw_name if is_all else raw_name[strip_prefix | length:] %}
+{% set display_name = t('app.partition_all') if is_all else raw_name[strip_prefix | length:] %}
 {% set is_active = (pid == active) %}
 {% set is_child = not is_all %}
 {% set has_next = (not loop.last and is_child) %}

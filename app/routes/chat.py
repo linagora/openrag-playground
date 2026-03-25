@@ -39,8 +39,8 @@ def _fetch_partitions(token, api_url):
             mid = m.get("id", "")
             if mid.startswith("openrag-"):
                 partitions.append({"id": mid, "role": None})
-        # Sort: openrag-all first, then alphabetical
-        partitions.sort(key=lambda x: ("0" if x["id"] == "openrag-all" else "1") + x["id"])
+        # Sort: openrag-all first, then case-insensitive alphabetical
+        partitions.sort(key=lambda x: ("0" if x["id"] == "openrag-all" else "1") + x["id"].lower())
         # Fetch roles from GET /partition/ (list all with roles)
         try:
             r = httpx.get(f"{api_url}/partition/", headers=headers, timeout=5.0)
@@ -92,9 +92,12 @@ def partitions():
     prefix = _common_prefix(parts)
     session["partition_prefix"] = prefix
     # OOB swap to update header label on initial load too
-    display = active.replace("openrag-", "")
-    if prefix and active != "openrag-all":
-        display = display[len(prefix):]
+    if active == "openrag-all":
+        display = t("app.partition_all")
+    else:
+        display = active.replace("openrag-", "")
+        if prefix:
+            display = display[len(prefix):]
     active_role = ""
     for p in parts:
         if p["id"] == active:
@@ -163,17 +166,17 @@ def partition_stats():
     partition = session.get("active_partition", "openrag-all").replace("openrag-", "")
     headers = {"Authorization": f"Bearer {token}"}
 
-    def _fetch_files():
+    def _fetch_files_for(p):
         try:
-            r = httpx.get(f"{api_url}/partition/{partition}", headers=headers, timeout=10.0)
+            r = httpx.get(f"{api_url}/partition/{p}", headers=headers, timeout=10.0)
             return r.json().get("files", []) if r.status_code == 200 else []
         except Exception:
             return []
 
-    def _count_chunks():
+    def _count_chunks_for(p):
         try:
             r = httpx.get(
-                f"{api_url}/partition/{partition}/chunks",
+                f"{api_url}/partition/{p}/chunks",
                 params={"include_embedding": "false"},
                 headers=headers, timeout=15.0,
             )
@@ -185,11 +188,23 @@ def partition_stats():
         except Exception:
             return 0
 
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        f_files = pool.submit(_fetch_files)
-        f_chunks = pool.submit(_count_chunks)
-        files = f_files.result()
-        chunk_count = f_chunks.result()
+    if partition == "all":
+        # Aggregate across all real partitions
+        all_parts = _fetch_partitions(token, api_url)
+        real = [p["id"].replace("openrag-", "") for p in all_parts if p["id"] != "openrag-all"]
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            file_futures = {pool.submit(_fetch_files_for, p): p for p in real}
+            chunk_futures = {pool.submit(_count_chunks_for, p): p for p in real}
+            files = []
+            for f in file_futures:
+                files.extend(f.result())
+            chunk_count = sum(f.result() for f in chunk_futures)
+    else:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            f_files = pool.submit(_fetch_files_for, partition)
+            f_chunks = pool.submit(_count_chunks_for, partition)
+            files = f_files.result()
+            chunk_count = f_chunks.result()
 
     file_count = len(files)
     if file_count == 0 and chunk_count == 0:
@@ -720,9 +735,12 @@ def select_partition():
     parts = _fetch_partitions(token, api_url)
     prefix = _common_prefix(parts)
     session["partition_prefix"] = prefix
-    display = partition.replace("openrag-", "")
-    if prefix and partition != "openrag-all":
-        display = display[len(prefix):]
+    if partition == "openrag-all":
+        display = t("app.partition_all")
+    else:
+        display = partition.replace("openrag-", "")
+        if prefix:
+            display = display[len(prefix):]
     active_role = ""
     for p in parts:
         if p["id"] == partition:
@@ -816,8 +834,9 @@ def semantic_search():
 
 def _sse_event(event, data):
     """Format an SSE event, handling multi-line data."""
-    lines = data.replace("\n", "")  # SSE data must be single-line for simple cases
-    return f"event: {event}\ndata: {lines}\n\n"
+    lines = data.split("\n")
+    payload = "\ndata: ".join(lines)
+    return f"event: {event}\ndata: {payload}\n\n"
 
 
 @chat_bp.route("/stream")

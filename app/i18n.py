@@ -445,6 +445,10 @@ TRANSLATIONS = {
         "en": "Partitions",
         "fr": "Partitions",
     },
+    "app.partition_all": {
+        "en": "All",
+        "fr": "Tout",
+    },
     "app.empty_chat": {
         "en": "Start a conversation",
         "fr": "Démarrez une conversation",

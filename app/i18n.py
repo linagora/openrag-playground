@@ -45,6 +45,10 @@ TRANSLATIONS = {
         "en": "Legal Notice",
         "fr": "Mentions légales",
     },
+    "footer.foss": {
+        "en": "FOSS",
+        "fr": "Logiciel Libre",
+    },
     "footer.manual": {
         "en": "Help",
         "fr": "Aide",
@@ -652,6 +656,10 @@ TRANSLATIONS = {
     "tooltip.legal_notice": {
         "en": "Legal notice",
         "fr": "Mentions légales",
+    },
+    "tooltip.foss": {
+        "en": "Free and Open Source Software",
+        "fr": "Logiciel Libre et Open Source",
     },
     "tooltip.user_manual": {
         "en": "User manual",

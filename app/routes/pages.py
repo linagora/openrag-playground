@@ -67,6 +67,12 @@ def legal():
     return _modal(title, body, hide_title=True)
 
 
+@pages_bp.route("/foss")
+def foss():
+    title, body = _load_doc("foss")
+    return _modal(title, body, hide_title=True)
+
+
 @pages_bp.route("/manual")
 def manual():
     title, body = _load_doc("manual")

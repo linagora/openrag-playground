@@ -683,7 +683,7 @@
             </div>
 
             <!-- Prompt history -->
-            <div class="sidebar-section-label" style="margin-top: 0.5rem;">{{ t('app.history') }}
+            <div class="sidebar-section-label mt-2">{{ t('app.history') }}
                 <button onclick="clearHistory()" class="ml-auto p-0 border-0 bg-transparent cursor-pointer" style="color: var(--text-subtle); float: right;" title="{{ t('tooltip.clear_history') }}">
                     <i data-lucide="trash-2" class="w-3 h-3"></i>
                 </button>
@@ -757,7 +757,7 @@
                             </button>
                         </div>
 
-                        <div style="border-top: 1px solid var(--border); margin-top: 0.25rem; padding-top: 0.25rem;">
+                        <div class="mt-1 pt-1" style="border-top: 1px solid var(--border);">
                         <form method="POST" action="{{ url_for('demo.logout_demo') }}">
                             <button type="submit" title="{{ t('tooltip.sign_out') }}">
                                 <i data-lucide="log-out" class="w-3.5 h-3.5"></i>

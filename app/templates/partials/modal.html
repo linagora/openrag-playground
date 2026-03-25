@@ -1,5 +1,5 @@
 <div class="confirm-overlay" onclick="if(event.target===this)this.remove()">
-    <div class="confirm-box max-w-3xl" style="max-height: 85vh; display: flex; flex-direction: column;">
+    <div class="confirm-box max-w-3xl max-h-[85vh] flex flex-col">
         <div class="flex items-center justify-between {{ 'mb-4' if title }} shrink-0">
             {% if title %}<h3 class="text-base font-bold">{{ title }}</h3>{% endif %}
             <button onclick="this.closest('.confirm-overlay').remove()" class="cursor-pointer ml-auto" style="color: var(--text-muted);">

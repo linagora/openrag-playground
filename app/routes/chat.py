@@ -106,8 +106,8 @@ def partitions():
 
 def _role_badge(is_admin):
     if is_admin:
-        return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px" style="font-size:10px;font-weight:600;background:rgba(199,31,69,0.15);color:var(--accent);">admin</span>'
-    return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px" style="font-size:10px;font-weight:600;background:rgba(34,211,164,0.15);color:var(--success);">user</span>'
+        return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px text-[10px] font-semibold" style="background:rgba(199,31,69,0.15);color:var(--accent);">admin</span>'
+    return '<span class="inline-block mt-0.5 rounded-full px-1.5 py-px text-[10px] font-semibold" style="background:rgba(34,211,164,0.15);color:var(--success);">user</span>'
 
 
 def _check_role(api_url, token):
@@ -218,7 +218,7 @@ def partition_stats():
             pct = min(100, int(count / file_count * 100))
             charts.append(
                 f'<span title="{ext}: {count}" style="white-space:nowrap;">'
-                f'<span class="chart" style="font-size:1.25rem;vertical-align:-3px;">{{p:{pct}}}</span>'
+                f'<span class="chart text-xl" style="vertical-align:-3px;">{{p:{pct}}}</span>'
                 f'&nbsp;<span class="text-[9px]" style="color:var(--text-subtle);">{ext}</span>'
                 f'</span>'
             )
@@ -242,7 +242,7 @@ def partition_stats():
     gmax = max(day_counts) if day_counts else 1
     growth_values = [min(100, int(v / gmax * 100)) if gmax else 0 for v in day_counts]
     if any(v > 0 for v in growth_values):
-        charts.append(f'<span class="chart" style="font-size:1.25rem;vertical-align:-3px;">{{l:{",".join(str(v) for v in growth_values)}}}</span>')
+        charts.append(f'<span class="chart text-xl" style="vertical-align:-3px;">{{l:{",".join(str(v) for v in growth_values)}}}</span>')
 
     text = sep.join(counts)
     if charts:

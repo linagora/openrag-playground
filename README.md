@@ -4,7 +4,7 @@ A demo interface for [Open-RAG.ai](https://open-rag.ai), purpose-built for smoot
 
 **Built by [LINAGORA](https://linagora.com)** | **License: AGPL-3.0**
 
-## Features
+## Features ([User Manual](docs/en/manual.md))
 
 - **Persona-based login** — fake user profiles backed by real OpenRAG tokens
 - **Streaming chat** — SSE-based token streaming with markdown rendering and source citations

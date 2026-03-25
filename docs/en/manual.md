@@ -104,7 +104,7 @@ For partitions where you have owner access, hover over the partition name and cl
 
 ## Admin Panel
 
-The admin panel is accessible at `/admin` (not linked in the main navigation). It requires the same master session as the main application.
+The admin panel is accessible at [/admin](/admin) (not linked in the main navigation). It requires the same master session as the main application.
 
 The admin panel provides four sections accessible via tabs:
 
@@ -113,7 +113,7 @@ The admin panel provides four sections accessible via tabs:
 - **Demo Prompts** -- Add, edit, or delete pre-configured prompts with labels, scopes, tags, and text.
 - **Settings** -- Export and import configuration files.
 
-The admin panel also provides a logout button to end the master session and return to the unlock screen.
+The admin panel also provides a [logout](/logout) link to end the master session and return to the unlock screen.
 
 ## User Menu
 
@@ -121,7 +121,6 @@ Click your avatar and name in the top-right corner of the chat header to open th
 
 - **Switch language** between English and French.
 - **Switch theme** between dark and light mode.
-- **Access administration** (opens `/admin`).
 - **Log out** to return to the persona login screen.
 
 ## Keyboard Shortcuts

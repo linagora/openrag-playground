@@ -104,7 +104,7 @@ Pour les partitions dont vous êtes propriétaire, survolez le nom de la partiti
 
 ## Panneau d'administration
 
-Le panneau d'administration est accessible à l'adresse `/admin` (non lié dans la navigation principale). Il nécessite la même session maître que l'application principale.
+Le panneau d'administration est accessible à l'adresse [/admin](/admin) (non lié dans la navigation principale). Il nécessite la même session maître que l'application principale.
 
 Le panneau d'administration propose quatre sections accessibles via des onglets :
 
@@ -113,7 +113,7 @@ Le panneau d'administration propose quatre sections accessibles via des onglets 
 - **Prompts de démo** -- Ajouter, modifier ou supprimer des prompts pré-configurés avec libellés, portées, tags et texte.
 - **Paramètres** -- Exporter et importer des fichiers de configuration.
 
-Le panneau d'administration propose aussi un bouton de déconnexion pour terminer la session maître et revenir à l'écran de déverrouillage.
+Le panneau d'administration propose aussi un lien de [déconnexion](/logout) pour terminer la session maître et revenir à l'écran de déverrouillage.
 
 ## Menu utilisateur
 
@@ -121,7 +121,6 @@ Cliquez sur votre avatar et votre nom dans le coin supérieur droit de l'en-têt
 
 - **Changer de langue** entre l'anglais et le français.
 - **Changer de thème** entre le mode sombre et le mode clair.
-- **Accéder à l'administration** (ouvre `/admin`).
 - **Se déconnecter** pour revenir à l'écran de sélection de persona.
 
 ## Raccourcis clavier

@@ -137,15 +137,15 @@ def _file_icon(filename):
     """Return a Lucide icon name based on file extension."""
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext in ("mp3", "wav", "ogg", "flac", "m4a", "aac"):
-        return "audio-lines"
+        return "mic"
     if ext in ("mp4", "webm", "mov", "avi", "mkv"):
-        return "file-play"
+        return "film"
     if ext in ("jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"):
         return "image"
     if ext == "pdf":
         return "file-text"
     if ext in ("md", "markdown"):
-        return "file-code"
+        return "align-left"
     if ext in ("eml", "msg"):
         return "mail"
     return "file"

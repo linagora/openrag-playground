@@ -16,15 +16,15 @@
         {% set file_key = file_url or fname %}
         {% set ext = fname.rsplit('.', 1)[-1] | lower if '.' in fname else '' %}
         {% if ext in ('mp3','wav','ogg','flac','m4a','aac') %}
-            {% set ficon = 'audio-lines' %}
+            {% set ficon = 'mic' %}
         {% elif ext in ('mp4','webm','mov','avi','mkv') %}
-            {% set ficon = 'file-play' %}
+            {% set ficon = 'film' %}
         {% elif ext in ('jpg','jpeg','png','gif','webp','svg','bmp') %}
             {% set ficon = 'image' %}
         {% elif ext == 'pdf' %}
             {% set ficon = 'file-text' %}
         {% elif ext in ('md','markdown') %}
-            {% set ficon = 'file-code' %}
+            {% set ficon = 'align-left' %}
         {% elif ext in ('eml','msg') %}
             {% set ficon = 'mail' %}
         {% else %}
@@ -32,7 +32,12 @@
         {% endif %}
         {% if file_key not in seen_files %}
         {% if seen_files.append(file_key) %}{% endif %}
-        <div class="source-item" title="{{ display }}">
+        <div class="source-item" style="position:relative;" title="{{ display }}">
+            {% if partition and session.get('active_partition') == 'openrag-all' %}
+            {% set pprefix = session.get('partition_prefix', '') %}
+            {% set pdisplay = partition[pprefix | length:] if pprefix and partition.startswith(pprefix) else partition %}
+            <span class="msg-partition" style="background:var(--bg-elevated);">{{ pdisplay }}</span>
+            {% endif %}
             <span class="truncate max-w-[180px] cursor-pointer hover:underline"
                   onclick="viewSourceFile('{{ partition }}','{{ fname | e }}','{{ static_path | e }}')">
                 <i data-lucide="{{ ficon }}" class="w-3 h-3 inline shrink-0" style="color: var(--accent); vertical-align: -1px;"></i>

@@ -1627,6 +1627,31 @@ function viewFile(partition, fileId, mediaType, source) {
         content = '<embed src="' + url + '" type="application/pdf" class="w-full rounded-lg" style="height:600px;">';
     } else if (mediaType === 'image') {
         content = '<img src="' + url + '" class="w-full rounded-lg">';
+    } else if (mediaType === 'text') {
+        // Fetch and display text/markdown content inline
+        var row = getOrCreateInlineRow(messages);
+        var div = document.createElement('div');
+        div.className = 'msg msg-assistant msg-inline';
+        div.innerHTML = '<div class="flex justify-center py-2">{% include "partials/spinner.html" %}</div>';
+        row.appendChild(div);
+        fetch(url).then(function(r) { return r.text(); }).then(function(html) {
+            div.innerHTML = '<div class="text-xs font-semibold mb-2" style="color:var(--text-muted);">' +
+                '<i data-lucide="file-code" class="w-3 h-3 inline-block" style="vertical-align:-1px;"></i> ' + fileId + '</div>' +
+                '<div class="md-content">' + html + '</div>';
+            var link = document.createElement('a');
+            link.href = url; link.target = '_blank'; link.rel = 'noopener';
+            link.className = 'msg-newtab';
+            link.innerHTML = '<i data-lucide="external-link" class="w-3.5 h-3.5"></i>';
+            div.appendChild(link);
+            addCopy(div);
+            addDismiss(div);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            messages.scrollTop = messages.scrollHeight;
+        }).catch(function() {
+            div.innerHTML = '<div class="text-xs" style="color:var(--danger);">Failed to load file</div>';
+            addDismiss(div);
+        });
+        return;
     } else {
         content = '<a href="' + url + '" target="_blank" rel="noopener" style="color:var(--accent);">' + fileId + '</a>';
     }
@@ -1638,7 +1663,6 @@ function viewFile(partition, fileId, mediaType, source) {
         '<i data-lucide="file" class="w-3 h-3 inline-block" style="vertical-align:-1px;"></i> ' + fileId +
         '</div>' + content;
     row.appendChild(div);
-    // Add open-in-new-tab link before dismiss
     var link = document.createElement('a');
     link.href = url;
     link.target = '_blank';

@@ -142,9 +142,13 @@ def _file_icon(filename):
         return "file-play"
     if ext in ("jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"):
         return "image"
+    if ext == "pdf":
+        return "file-text"
+    if ext in ("md", "markdown"):
+        return "file-code"
     if ext in ("eml", "msg"):
         return "mail"
-    return "file-text"
+    return "file"
 
 
 def _file_media_type(filename):
@@ -383,7 +387,22 @@ def file_proxy(partition, file_id):
             follow_redirects=True,
         )
         if resp.status_code == 200 and len(resp.content) > 0:
+            import markdown as md
             from flask import make_response
+            ext = file_id.rsplit(".", 1)[-1].lower() if "." in file_id else ""
+            if ext in ("md", "markdown", "txt", "text", "csv", "json", "xml", "yml", "yaml", "log"):
+                text = resp.content.decode("utf-8", errors="replace")
+                if ext in ("md", "markdown"):
+                    body = md.markdown(text, extensions=["tables", "fenced_code"])
+                else:
+                    body = f"<pre>{text}</pre>"
+                # Return bare HTML for fetch (inline display), full page for new tab
+                if request.headers.get("Sec-Fetch-Dest") == "empty":
+                    r = make_response(body)
+                else:
+                    r = make_response(f'<!DOCTYPE html><html><head><meta charset="utf-8"><title>{file_id}</title><style>body{{font-family:sans-serif;padding:2rem;max-width:800px;margin:0 auto;line-height:1.6;}}pre{{white-space:pre-wrap;word-wrap:break-word;}}</style></head><body>{body}</body></html>')
+                r.headers["Content-Type"] = "text/html; charset=utf-8"
+                return r
             r = make_response(resp.content)
             ct = resp.headers.get("content-type", "application/octet-stream")
             r.headers["Content-Type"] = ct

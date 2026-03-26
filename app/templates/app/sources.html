@@ -14,12 +14,28 @@
         {% set display = fname.split('_', 2)[-1] if fname.count('_') >= 2 else fname %}
         {% set static_path = '/static/' + fname if fname else '' %}
         {% set file_key = file_url or fname %}
+        {% set ext = fname.rsplit('.', 1)[-1] | lower if '.' in fname else '' %}
+        {% if ext in ('mp3','wav','ogg','flac','m4a','aac') %}
+            {% set ficon = 'audio-lines' %}
+        {% elif ext in ('mp4','webm','mov','avi','mkv') %}
+            {% set ficon = 'file-play' %}
+        {% elif ext in ('jpg','jpeg','png','gif','webp','svg','bmp') %}
+            {% set ficon = 'image' %}
+        {% elif ext == 'pdf' %}
+            {% set ficon = 'file-text' %}
+        {% elif ext in ('md','markdown') %}
+            {% set ficon = 'file-code' %}
+        {% elif ext in ('eml','msg') %}
+            {% set ficon = 'mail' %}
+        {% else %}
+            {% set ficon = 'file' %}
+        {% endif %}
         {% if file_key not in seen_files %}
         {% if seen_files.append(file_key) %}{% endif %}
         <div class="source-item" title="{{ display }}">
             <span class="truncate max-w-[180px] cursor-pointer hover:underline"
                   onclick="viewSourceFile('{{ partition }}','{{ fname | e }}','{{ static_path | e }}')">
-                <i data-lucide="file" class="w-3 h-3 inline shrink-0" style="color: var(--accent); vertical-align: -1px;"></i>
+                <i data-lucide="{{ ficon }}" class="w-3 h-3 inline shrink-0" style="color: var(--accent); vertical-align: -1px;"></i>
                 {{ display }}
             </span>
             {% if chunk_url %}

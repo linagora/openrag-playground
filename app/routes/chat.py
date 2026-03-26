@@ -389,15 +389,17 @@ def file_proxy(partition, file_id):
         if resp.status_code == 200 and len(resp.content) > 0:
             import markdown as md
             from flask import make_response
-            ext = file_id.rsplit(".", 1)[-1].lower() if "." in file_id else ""
+            # Check extension from source path first, then file_id
+            check_name = source or file_id
+            ext = check_name.rsplit(".", 1)[-1].lower() if "." in check_name else ""
             if ext in ("md", "markdown", "txt", "text", "csv", "json", "xml", "yml", "yaml", "log"):
                 text = resp.content.decode("utf-8", errors="replace")
                 if ext in ("md", "markdown"):
                     body = md.markdown(text, extensions=["tables", "fenced_code"])
                 else:
                     body = f"<pre>{text}</pre>"
-                # Return bare HTML for fetch (inline display), full page for new tab
-                if request.headers.get("Sec-Fetch-Dest") == "empty":
+                # Return bare HTML for inline display, full page for new tab
+                if request.args.get("inline"):
                     r = make_response(body)
                 else:
                     r = make_response(f'<!DOCTYPE html><html><head><meta charset="utf-8"><title>{file_id}</title><style>body{{font-family:sans-serif;padding:2rem;max-width:800px;margin:0 auto;line-height:1.6;}}pre{{white-space:pre-wrap;word-wrap:break-word;}}</style></head><body>{body}</body></html>')

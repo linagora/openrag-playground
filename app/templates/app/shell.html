@@ -1199,6 +1199,7 @@ function doSemanticSearch(query, partition) {
                     var header = '<div class="text-[10px] font-semibold mb-1" style="color:var(--text-muted);">';
                     if (c.filename) {
                         var proxyUrl = '/chat/file-proxy/' + c.partition + '/' + encodeURIComponent(c.filename) + '?source=' + encodeURIComponent(c.static_path);
+                        if (c.page) proxyUrl += '#page=' + c.page;
                         header += '<a href="' + proxyUrl + '" target="_blank" rel="noopener" style="color:var(--accent);" title="' + c.filename + '">' +
                             '<i data-lucide="file" class="w-2.5 h-2.5 inline" style="vertical-align:-1px;"></i> ' + c.filename + '</a>';
                     }
@@ -1610,7 +1611,7 @@ function getOrCreateInlineRow(messages) {
     return row;
 }
 
-function viewFile(partition, fileId, mediaType, source) {
+function viewFile(partition, fileId, mediaType, source, page) {
     var messages = document.getElementById('chat-messages');
     var emptyState = messages.querySelector('.flex.items-center.justify-center');
     if (emptyState) emptyState.remove();
@@ -1624,7 +1625,8 @@ function viewFile(partition, fileId, mediaType, source) {
     } else if (mediaType === 'video') {
         content = '<video controls class="w-full rounded-lg"><source src="' + url + '"></video>';
     } else if (mediaType === 'pdf') {
-        content = '<embed src="' + url + '" type="application/pdf" class="w-full rounded-lg" style="height:600px;">';
+        var pdfUrl = url + (page ? '#page=' + page : '');
+        content = '<embed src="' + pdfUrl + '" type="application/pdf" class="w-full rounded-lg" style="height:600px;">';
     } else if (mediaType === 'image') {
         content = '<img src="' + url + '" class="w-full rounded-lg">';
     } else if (mediaType === 'text') {
@@ -1634,7 +1636,8 @@ function viewFile(partition, fileId, mediaType, source) {
         div.className = 'msg msg-assistant msg-inline';
         div.innerHTML = '<div class="flex justify-center py-2">{% include "partials/spinner.html" %}</div>';
         row.appendChild(div);
-        fetch(url).then(function(r) { return r.text(); }).then(function(html) {
+        var inlineUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'inline=1';
+        fetch(inlineUrl).then(function(r) { return r.text(); }).then(function(html) {
             div.innerHTML = '<div class="text-xs font-semibold mb-2" style="color:var(--text-muted);">' +
                 '<i data-lucide="align-left" class="w-3 h-3 inline-block" style="vertical-align:-1px;"></i> ' + fileId + '</div>' +
                 '<div class="md-content">' + html + '</div>';
@@ -1664,7 +1667,7 @@ function viewFile(partition, fileId, mediaType, source) {
         '</div>' + content;
     row.appendChild(div);
     var link = document.createElement('a');
-    link.href = url;
+    link.href = url + (page ? '#page=' + page : '');
     link.target = '_blank';
     link.rel = 'noopener';
     link.className = 'msg-newtab';
@@ -1800,14 +1803,14 @@ function showUploadSuccess(fileName) {
     setTimeout(function() { document.getElementById('upload-status').style.display = 'none'; }, 5000);
 }
 
-function viewSourceFile(partition, fname, staticPath) {
+function viewSourceFile(partition, fname, staticPath, page) {
     var ext = fname.split('.').pop().toLowerCase();
     var mediaType = 'text';
     if (['pdf'].indexOf(ext) >= 0) mediaType = 'pdf';
     else if (['jpg','jpeg','png','gif','webp','svg','bmp'].indexOf(ext) >= 0) mediaType = 'image';
     else if (['mp3','wav','ogg','flac','m4a','aac'].indexOf(ext) >= 0) mediaType = 'audio';
     else if (['mp4','webm','mov','avi','mkv'].indexOf(ext) >= 0) mediaType = 'video';
-    viewFile(partition, fname, mediaType, staticPath);
+    viewFile(partition, fname, mediaType, staticPath, page);
 }
 
 function viewSourceChunk(chunkUrl) {
